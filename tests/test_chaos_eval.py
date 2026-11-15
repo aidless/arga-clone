@@ -111,5 +111,9 @@ def test_calls_detail_carries_the_replay_flag():
 
     from demo import agent_compare
 
-    src = inspect.getsource(agent_compare.run_one)
+    # 字段白名单集中在 `DETAIL_FIELDS` + `detail_row()`，所以两处都要查：
+    # 只看 run_one 的源码会在字段逻辑被提走之后假装通过（本次就是这样露的）。
+    assert "replayed" in agent_compare.DETAIL_FIELDS
+    assert agent_compare.detail_row({"replayed": True})["replayed"] is True
+    src = inspect.getsource(agent_compare.detail_row)
     assert '"replayed": bool(c.get("replayed"))' in src

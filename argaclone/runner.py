@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import random
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -72,6 +74,11 @@ def empty_trace() -> dict[str, Any]:
     }
 
 
+# 可重试的传输级失败。429 必须在内：限流是"稍后再来"，不是"你错了"。
+# 402/400/404 这些是语义拒绝，重发只会拿到同一个答案 —— 排除它们是这条判据的价值所在。
+RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
+
+
 # Slack 把**所有**方法都做成 POST —— 读聊天记录也是 POST。
 # 所以"method != GET 就是写"这条判据在 Slack 上会把每一次读取都记成写，
 # 于是"只发一次公告"被判成刷屏、"回帖确认"被判成多余写。
@@ -118,6 +125,10 @@ class Runner:
         run_id: str,
         idempotent_writes: bool = False,
         client_retries: int = 0,
+        retry_backoff: float = 0.0,
+        retry_backoff_cap: float = 2.0,
+        jitter: float = 0.5,
+        sleep=time.sleep,
     ) -> None:
         self.gateway = gateway
         self.run_id = run_id
@@ -137,6 +148,47 @@ class Runner:
         # 所以这个参数量的不是"模型聪不聪明"，而是"**客户端建对了之后，这个环境能不能
         # 给出恰好一次**"。0 = 现造现报（模型自己重试），>0 = 假装客户端有重试层。
         self.client_retries = max(0, int(client_retries))
+        # 退避：真实 SDK 不会连着轰。`retry_backoff` 是指数基数（秒），第 n 次重试
+        # 等 `base * 2**(n-1)`，封顶 `cap`；`jitter` 是"全抖动"（full jitter）的幅度，
+        # 实际等待 = 上限内均匀随机 —— 固定退避会让一批客户端在同一个毫秒醒来，
+        # 把一次 5xx 变成一次自造的惊群。
+        # 0 表示不退避（老行为，测试里用它保持快）。
+        self.retry_backoff = max(0.0, float(retry_backoff))
+        self.retry_backoff_cap = max(0.0, float(retry_backoff_cap))
+        self.jitter = min(1.0, max(0.0, float(jitter)))
+        # 注入 sleep 是为了让"等了多少"可测：真睡会让一排重试测试变成秒级
+        self._sleep = sleep
+
+    def _wait_before_retry(self, attempt: int, headers: dict[str, str]) -> float:
+        """这一次重试前该等多久。
+
+        两条规则，顺序有讲究：
+        1. **服务端说等多久就等多久**（`Retry-After`，秒数；HTTP-date 形式不解析，
+           直接忽略退回指数退避 —— 解析半个格式比不解析更危险）。
+        2. 否则指数退避 + 全抖动。
+
+        `Retry-After` 优先的原因：限流窗口是服务端定的，客户端自己猜一个更短的
+        间隔只会把 429 变成更多 429。
+        """
+        # 退避关掉 = 完全没有节奏纪律（也不看 Retry-After）。这条分界要显式，
+        # 否则"默认不退避"的评测会在 134 次重试里真睡几分钟，而读数一点没变。
+        if self.retry_backoff <= 0:
+            return 0.0
+        raw = headers.get("Retry-After") or headers.get("retry-after")
+        if raw:
+            try:
+                secs = float(str(raw).strip())
+            except ValueError:
+                secs = None
+            if secs is not None and secs >= 0:
+                return min(secs, self.retry_backoff_cap or secs)
+        ceiling = min(self.retry_backoff * (2 ** (attempt - 1)), self.retry_backoff_cap)
+        if self.jitter <= 0:
+            return ceiling
+        # full jitter：在 [ceiling*(1-jitter), ceiling] 之间均匀取值。
+        # 取上界为 ceiling 而不是"ceiling 到 2*ceiling"，是为了让封顶仍然是硬上界。
+        low = ceiling * (1.0 - self.jitter)
+        return round(random.uniform(low, ceiling), 4)
 
     def _host(self, provider: str) -> str:
         return f"{provider}.{self.run_id}.twins.local"
@@ -156,6 +208,7 @@ class Runner:
         # 客户端重试层：只重试**传输级失败**（5xx / 响应没落地），不重试 4xx。
         # 4xx 是语义拒绝，重发一遍只会得到同一个 4xx —— 那是日志噪声，不是韧性。
         attempts = 0
+        retry_waits: list[float] = []
         is_write_call = _is_write(action.provider, action.method.upper(), action.path)
         while True:
             resp = self.gateway.handle(
@@ -165,14 +218,22 @@ class Runner:
             ok = is_success(action.provider, resp.status, payload)
             # 注意这里**不要求** idempotent_writes：不带钥匙的客户端也会重试，
             # 而那正是重复扣款的来源。把"重试"绑在"有钥匙"上，等于让对照组消失。
+            # 读也要重试 429：限流不是"你问错了"，是"稍后再问"，而重发一次读
+            # 不改变世界。5xx 的读则**不**重试 —— 那一路是要让模型自己决定
+            # "是重试还是换个办法"，替它决定会把 §23 那批韧性读数抹平。
+            read_throttled = (not is_write_call) and resp.status == 429
             if (
-                not is_write_call
+                (not is_write_call and not read_throttled)
                 or ok
-                or resp.status < 500
+                or resp.status not in RETRYABLE_STATUS
                 or attempts >= self.client_retries
             ):
                 break
             attempts += 1
+            waited = self._wait_before_retry(attempts, resp.headers)
+            retry_waits.append(waited)
+            if waited:
+                self._sleep(waited)
 
         record = {
             "n": len(self.calls) + 1,
@@ -197,6 +258,9 @@ class Runner:
             # 就会写 2 遍 —— 这两件事在报表上必须能分开，否则"重试"这个词
             # 既可能是药的功劳，也可能是病的来源。
             "client_retries": attempts,
+            # 每次重试前实际等了多久（秒）。记下来才判得开"它真的退避了"和
+            # "它只是碰巧第二次成功" —— 后者在快环境里看起来一模一样。
+            "retry_waits": retry_waits,
             "error": None if ok else self._error_of(payload),
             "request": action.body or None,
             # 响应体必须留在 record 里。没有它，agent 看到的是"状态码 200、

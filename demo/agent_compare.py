@@ -84,18 +84,77 @@ CHAOS_PROFILES: dict[str, list[dict]] = {
         {"provider": "*", "method": "POST", "path": "/**", "mode": "status",
          "status": 500, "times": 1, "message": "nothing was written"},
     ],
+    # throttled = "不是坏了，是太快了"。这个剖面专门测**节奏**：
+    # 固定窗口限流 + 一条 503，没有 commit_then_fail，所以重复写入不是这里的问题。
+    # 它要问的是"客户端退避时能不能等到窗口过去" —— 不退避的客户端会在同一窗口里
+    # 连撞，把 429 越撞越多，最后模型看到一串失败并放弃。
+    "throttled": [
+        {"provider": "*", "method": "POST", "path": "/**", "mode": "status",
+         "status": 503, "times": 1, "message": "service unavailable"},
+    ],
+}
+
+# 限流单独一张表：它不是 fault（不进 X-Twin-Fault 的计数），而是窗口规则。
+CHAOS_RATE_LIMITS: dict[str, list[dict]] = {
+    "off": [],
+    "flaky": [],
+    "ambiguous": [],
+    # limit=2/2s 是实测选出来的：80 题里每 episode 平均 6 次调用，limit=6/s 几乎撞不到
+    # 窗口（跑了 160 episodes，最终落在 429 上的调用是 0）—— 剖面没咬住，读数就只是噪声。
+    # limit=2/2s 会让"连着两个调用"就进窗口，退避才有可量的作用。
+    "throttled": [{"provider": "*", "limit": 2, "window_seconds": 2, "retry_after": 1}],
 }
 
 
 def apply_chaos(app: App, run_id: str, profile: str) -> int:
     """给这次 episode 的 run 挂上故障。返回挂了几条（0 = 没挂）。"""
     rules = CHAOS_PROFILES.get(profile or "off") or []
-    if not rules:
+    limits = CHAOS_RATE_LIMITS.get(profile or "off") or []
+    if not rules and not limits:
         return 0
     run = app.store.get(run_id)
     for rule in rules:
         chaos.add_fault(run, dict(rule))
-    return len(rules)
+    for lim in limits:
+        chaos.add_rate_limit(run, dict(lim))
+    return len(rules) + len(limits)
+
+
+# `calls_detail` 的字段表：**唯一一处**决定"哪些字段会活到结果文件里"。
+# 这个白名单漏过一次 `replayed`（整轮 78 分钟的数据作废）、漏过一次 `client_retries`，
+# 所以它不能再散在内联推导式里 —— 现在有了 `detail_row` 与 `tests/test_detail_parity.py`
+# 的一致性断言，漏字段会当场红，而不是等到复算读数时才发现。
+DETAIL_FIELDS = (
+    "provider", "method", "path", "status", "stub", "declared", "absent",
+    "replayed", "client_retries", "retry_waits",
+)
+
+
+def detail_row(c: dict) -> dict:
+    """把 runner 的一条调用记录压成结果文件里那一行。"""
+    row = {
+        "provider": c.get("provider", ""),
+        "method": c.get("method", ""),
+        "path": c.get("path", ""),
+        "status": c.get("status", 0),
+        "stub": bool(c.get("stub")),
+        # 声明的边界与欠账必须在结果文件里就分开，否则离线报表只剩总数，
+        # 想拆就得重跑（而重跑一次 480 episodes 是 73 分钟）
+        "declared": bool(c.get("declared")),
+        "absent": bool(c.get("absent")),
+        # 重放标记必须跟着 calls_detail 走：不带走的话，离线重算
+        # `duplicate_writes` 会把"重试但安全"算成"重试且写了两遍"，
+        # 而这正是这条能力唯一要量的东西。
+        "replayed": bool(c.get("replayed")),
+        "client_retries": int(c.get("client_retries") or 0),
+        # 每次重试前等了多久（秒）。不带走就分不出"真退避"与"碰巧第二次成功"——
+        # 在快环境里这两件事的调用序列一模一样。
+        "retry_waits": list(c.get("retry_waits") or []),
+    }
+    row["endpoint"] = (
+        Twin._normalize(f'{row["method"]} {row["path"]}') if row["stub"] else ""
+    )
+    return row
 
 
 def chaos_metrics(calls: list[dict]) -> dict:
@@ -308,7 +367,7 @@ def dispatch(runner, creds: dict, call: dict) -> str:
 
 def run_one(model: str, scenario: dict, app: App, twins: str,
             chaos_profile: str = "off", idempotent_writes: bool = False,
-            client_retries: int = 0) -> dict:
+            client_retries: int = 0, retry_backoff: float = 0.0) -> dict:
     view = app.provision({"twins": twins, "ttl": 900, "scenario_id": scenario["id"]})
     run_id = view["run_id"]
     applied_rules = apply_chaos(app, run_id, chaos_profile)
@@ -316,6 +375,7 @@ def run_one(model: str, scenario: dict, app: App, twins: str,
     runner = app.runner_for(run_id)
     runner.idempotent_writes = idempotent_writes
     runner.client_retries = client_retries
+    runner.retry_backoff = retry_backoff
 
     messages = [
         {"role": "system", "content": fill_tokens(SYSTEM, creds)},
@@ -369,30 +429,7 @@ def run_one(model: str, scenario: dict, app: App, twins: str,
     trace = report.get("trace") or {}
     # call 级明细：让保真度报表能直接从跑分结果复算"哪些端点被真的用到了"，
     # 不必重跑一遍。只留 8 个字段，避免结果文件膨胀。
-    calls_detail = [
-        {
-            "provider": c.get("provider", ""),
-            "method": c.get("method", ""),
-            "path": c.get("path", ""),
-            "status": c.get("status", 0),
-            "stub": bool(c.get("stub")),
-            # 声明的边界与欠账必须在结果文件里就分开，否则离线报表只剩总数，
-            # 想拆就得重跑（而重跑一次 480 episodes 是 73 分钟）
-            "declared": bool(c.get("declared")),
-            "absent": bool(c.get("absent")),
-            # 重放标记必须跟着 calls_detail 走：不带走的话，离线重算
-            # `duplicate_writes` 会把"重试但安全"算成"重试且写了两遍"，
-            # 而这正是这条能力唯一要量的东西。
-            "replayed": bool(c.get("replayed")),
-                    "client_retries": int(c.get("client_retries") or 0),
-            "endpoint": (
-                Twin._normalize(f'{c.get("method", "")} {c.get("path", "")}')
-                if c.get("stub")
-                else ""
-            ),
-        }
-        for c in trace.get("calls", [])
-    ]
+    calls_detail = [detail_row(c) for c in trace.get("calls", [])]
     metrics = chaos_metrics(trace.get("calls", []))
     # 一次工具调用都没发出去就断了，说明是通道问题。把它记成 FAIL 会让
     # pass rate 里混进"网关抽风"的成分——那一格与"模型答错了"完全同形。
@@ -406,6 +443,7 @@ def run_one(model: str, scenario: dict, app: App, twins: str,
         "chaos": chaos_profile if applied_rules else "off",
         "idempotent_writes": idempotent_writes,
         "client_retries_cfg": client_retries,
+        "retry_backoff_cfg": retry_backoff,
         "injected_failures": metrics["injected_failures"],
         "recovered": metrics["recovered"],
         "unrecovered": metrics["unrecovered"],
@@ -495,6 +533,9 @@ def main() -> int:
     ap.add_argument("--client-retries", type=int, default=0,
                     help="客户端重试层：写请求遇到 5xx 时由 runner 用同一把钥匙重发几次。"
                          "0 = 现造现报（模型自己重试，它重试时会改写措辞，于是钥匙也变了）")
+    ap.add_argument("--retry-backoff", type=float, default=0.0,
+                    help="客户端重试的指数退避基数（秒）。0 = 立刻重发（老行为）；"
+                         ">0 时同时启用全抖动与 Retry-After 优先")
     ap.add_argument("--chaos", default="off", choices=sorted(CHAOS_PROFILES),
                     help="故障剖面：flaky = 每个 episode 注入 4 条一次性故障")
     ap.add_argument("--runs", type=int, default=1,
@@ -538,7 +579,7 @@ def main() -> int:
         app = App(str(SCEN_DIR))  # 每个 episode 一个干净 store
         try:
             out = run_one(model, sc, app, twins_for(sc), args.chaos, args.idempotency,
-                          args.client_retries)
+                          args.client_retries, args.retry_backoff)
             out["run"] = run_index
             return out
         except Exception as exc:  # noqa: BLE001 - 单题炸掉不能拖垮整批

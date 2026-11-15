@@ -7,7 +7,7 @@
 `base_url` and your Stripe / Slack / GitHub / Salesforce / Jira / Notion / HubSpot /
 Linear / Gmail / Google Calendar / Google Drive code runs against a writable,
 retry-safe, resettable simulator instead of production. 11 twins, 281 routes,
-80 hand-written tasks across 5 domains, 632 tests, zero third-party runtime
+80 hand-written tasks across 5 domains, 643 tests, zero third-party runtime
 dependencies (pure stdlib), and three access surfaces (HTTP · MCP · SDK).
 Every number in this README is recomputable from the files in this repo
 (`scripts/check_readme.py` fails the build when the docs drift from the code).
@@ -16,7 +16,7 @@ Every number in this README is recomputable from the files in this repo
 可写、可重试、可回滚、坏了也不伤真实数据的 Stripe / Slack 上跑。
 
 这是对 [Arga Labs](https://argalabs.com) 那套产品的技术复刻，零第三方依赖（纯 stdlib）：
-**11 个 twin / 281 条路由 / 80 道五域任务 / 79 道 gold 可解性证明 / 632 个测试全绿 /
+**11 个 twin / 281 条路由 / 80 道五域任务 / 79 道 gold 可解性证明 / 643 个测试全绿 /
 480 episodes 真模型实测（含 Wilson 区间与配对检验）/ 三条接入面（HTTP·MCP·SDK）/
 声明式边界（哪些端点"不打算做"）、run-scoped 严格令牌、故障注入（含
 "写已生效但响应失败"）、幂等键与客户端重试层、Link 分页、事件投递、乐观并发**。
@@ -25,7 +25,7 @@ Every number in this README is recomputable from the files in this repo
 git clone https://github.com/aidless/arga-clone && cd arga-clone
 pip install -e .            # 零运行时依赖，只装一个 entry point
 python3 -m argaclone.cli serve --port 8787        # 起服务（admin + 全部 twin 单端口）
-python3 -m pytest                                 # 632 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
+python3 -m pytest                                 # 643 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
 python3 demo/run_demo.py                          # 三种 agent 行为 → 三种判决
 python3 demo/agent_compare.py --limit 1           # 真模型跑 benchmark（需本地 LLM 网关）
 bash scripts/verify.sh                            # 十二层验收，任何一层红了就停
@@ -281,7 +281,7 @@ argaclone/
   mcp_server.py     MCP（Streamable HTTP / JSON-RPC 2.0）六工具，自动注入 run 凭据
   client.py         Python SDK（纯 urllib），只做 HTTP 不替服务端算状态
   cli.py            serve / twin-runs / scenarios / act / grade / state
-tests/              632 个用例，含 12 条 RED 反证
+tests/              643 个用例，含 12 条 RED 反证
   contracts/        跨 twin 契约层：新增 twin 未登记即 CI 红
 scenarios/          80 道任务 JSON（生成自 suite_*.py / suite_extra.py）+ build_suite.py 生成器
   suite_it.py / suite_crm.py / suite_mkt.py / suite_dev.py / suite_ecom.py
@@ -799,7 +799,7 @@ agent 会拿到"这个 CRM 里只有 3 个联系人"这个假事实，然后基�
 `twins/salesforce_twin.py`，36 条路由，工厂产出 + 三处必须手写的地方。它带来的是
 **第五种列表信封**和一条比信封更狠的教训，见下一节。
 
-当前规模：**11 个 twin / 281 条路由 / 80 道题 / 632 个测试全绿 / 十二层验收全过**。
+当前规模：**11 个 twin / 281 条路由 / 80 道题 / 643 个测试全绿 / 十二层验收全过**。
 
 ## 17. 错误体是数组：形状保真里最便宜的一条，也最容易被糊过去（2026-11-13）
 
@@ -924,7 +924,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
    声明式 stub：欠账 1 / 边界 1；严格令牌：假 401 / 真 200；默认模式放行（已知局限）
 ```
 
-`pytest` → **632 passed**，`bash scripts/verify.sh` → 十二层全过。
+`pytest` → **643 passed**，`bash scripts/verify.sh` → 十二层全过。
 
 ### 18.4 仍然没证明的
 
@@ -973,7 +973,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
 
 ```
 1/11 场景定义合法性        7/11 MCP 端点
-2/12 pytest（632）         8/12 SDK + PR 钩子
+2/12 pytest（643）         8/12 SDK + PR 钩子
 3/11 三态判分演示          9/11 边界与凭据（声明式 stub / 严格令牌）
 4/11 HTTP 面冒烟          10/11 README 数字可复算   ← 本轮新增
 5/12 gold 39/39           11/11 真模型冒烟（可选）
@@ -1760,3 +1760,93 @@ MIT —— 见 [LICENSE](LICENSE)。Copyright (c) 2026 YG.
    也会写两次。要让它变成恰好一次，得让模型自己维护"操作身份"——本环境仍量不到。
 4. **只有单模型**。`deepseek-v4.1-flash` 与 `workbuddy/glm-5.3-flash` 的上游额度
    仍未恢复（`429 WorkBuddy: 额度已用尽`），所以这一节不做跨模型结论。
+
+---
+
+## 28. 退避：重试的次数对了，节奏还可能全错（2026-11-15）
+
+§27 的客户端重试层把重复写入压到 0，但它有一个明显的简笔：**失败之后立刻重发**。
+真实 SDK 不会这么干 —— 它指数退避、带抖动，并且尊重服务端的 `Retry-After`。
+
+这一节补的就是**节奏**，并且给出一条能把它量出来的剖面。
+
+### 28.1 为什么"次数对了"不等于"节奏对了"
+
+这个环境里有固定窗口限流（§23）：`limit=6 / window=1s` 表示"同一秒内最多 6 次"。
+在这个规则下：
+
+- **不退避**的客户端在第 7 次撞上 429，然后立刻再发 3 次 —— 3 次全都撞在同一窗口里。
+  模型看到的是一串 429，于是它要么放弃，要么换一条（可能更错的）路。
+- **退避得对**的客户端等 1 秒，窗口滚过去，第二发就过。
+
+所以"重试 3 次"这个数字在两个客户端上是同一回事，**代价完全不同**。这也是为什么
+这一节的判据不是"重试了几次"，而是"每次等了多少"。
+
+### 28.2 三条规则，顺序有讲究
+
+| 规则 | 值 | 为什么 |
+|---|---|---|
+| 指数退避 | 第 n 次等 `base * 2**(n-1)`，封顶 `cap` | 固定间隔等于把一批客户端训练成同步轰炸 |
+| 全抖动 | 在 `[ceiling*(1-jitter), ceiling]` 均匀取值 | 上界仍是 `ceiling`，所以 cap 是**硬上界**；抖动只往下抖，不会把等待推到封顶之上 |
+| `Retry-After` 优先 | 有就用它，否则走指数 | 限流窗口是服务端定的。客户端自己猜一个更短的间隔，只会把一次 429 变成更多 429 |
+
+`Retry-After` 的 HTTP-date 形式**不解析**，直接退回指数退避。解析半个格式比不解析更危险：
+解析错了会得到一个看起来合理的错误等待。
+
+429 与 500/502/503/504 一起算"可重试"（`RETRYABLE_STATUS`）；
+400/402/404 这些是语义拒绝，重发只会拿到同一个答案 —— 排除它们才是这条判据的价值。
+
+读写分开：**读遇到 429 也重试**（重发一次读不改世界），**读遇到 5xx 不重试**
+（那一路要留给模型自己决定"是重试还是换办法"，替它决定会把 §23 那批
+"它会不会重试"的读数抹平）。
+
+### 28.3 一条必须显式写下的分界
+
+`retry_backoff=0` 表示**没有节奏纪律**，连 `Retry-After` 也不看。
+
+不这么定会有个具体的代价：§27 那轮评测里有 134 次重试，每次若按 `Retry-After: 1` 真睡，
+整轮要多花两分多钟，而读数一个字都不变（那轮没有限流规则）。所以"默认关闭退避"
+不是偷懒，是让"要不要买这个能力"变成可选项 —— 然后把差异用量出来的表说话。
+
+### 28.4 承重反证
+
+`tests/test_retry_backoff.py::test_red_hammering_without_backoff_keeps_hitting_the_window`：
+同一条限流规则、同一套重试，只把退避关掉 —— 3 次重试全都撞在同一个窗口里，
+`clock.slept == []`。去掉这条，"退避"就退化成"多试了几次"的同义词，
+而所有只数重试次数的断言仍然绿。
+
+### 28.5 实测
+
+| 配置 | 通过 | Wilson 95% | FAIL | UNSAFE | 客户端重试 | 平均调用 | 墙钟 |
+|---|---|---|---|---|---|---|---|
+| `--retry-backoff 0.25`（退避） | 70/80 = **87.5%** | [78.5, 93.1] | 8 | 2 | 71 | 6.45 | 3427s |
+| 不退避（`--retry-backoff 0`） | 66/80 = **82.5%** | [72.7, 89.3] | 12 | 2 | 69 | 6.17 | 2758s |
+
+配对（同一题、同一模型、同一剖面）：退避 **丢 7 题 / 赢 3 题**，`mcnemar_exact(7, 3)` **p=0.344**。
+两臂的 `duplicate_writes` 都是 **0**、最终落在 429 上的调用都是 **0**。
+
+**这个差额是噪声，而且原因比"样本小"更具体**：`throttled` 剖面最初配的是
+`limit=6 / window=1s`，而每一题平均只有 6 次调用 —— 模型自己在两次调用之间要思考
+好几秒，**窗口早就滚过去了**。所以限流规则在这 160 episodes 里一次都没咬住，
+两臂的差别只来自那一条 `503`，而 503 对退避不敏感（退避 0.25s 也救不了语义拒绝）。
+
+把窗口收紧到 `limit=2 / window=2s` 再看 10 题：两臂都是 7/10，退避臂记录了
+`retry_waits` 合计 0.996s、不退避臂 0.000s，429 仍然一次都没落到模型手上 ——
+因为在任何 2 秒窗口里，模型自己都凑不出第三次调用。
+
+**结论（这是个否定结果，但它有用）**：在"模型驱动"的评测里量不到重试节奏。
+节奏要能被量，需要一串**紧挨着**的失败请求，而这只有客户端内部的重试会产生；
+模型自己的调用间隔比任何真实限流窗口都长。所以这一节的判据落在两处：
+`tests/test_retry_backoff.py` 的 8 条（含承重反证）与 `scripts/verify.sh` 第 10 层
+的 5d 段 —— 那里的调用是背靠背的，窗口咬得住。**评测这一层我不给数字，
+给的是"这一层测不出"这件事本身。**
+
+### 28.6 这一节仍没证明的
+
+1. **抖动是均匀的，不是去相关的**。真实客户端会用"上一次的等待 + 随机"这类做法避免
+   整个机群同步醒来；这里只有 full jitter，测不出"惊群"这一类问题（单进程评测本来也测不到）。
+2. **没有重试预算与熔断**。真实 SDK 常有"总共最多等 N 秒"或"连续失败就熔断"；
+   这里的上界只是次数。
+3. **`Retry-After` 的 HTTP-date 形式没实现**，静默退回指数退避 —— 这是有意的简化，
+   但它意味着"服务端给日期"的场景在这里等于"服务端没给"。
+4. **单模型**（上游额度未恢复），不做跨模型结论。

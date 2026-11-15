@@ -325,6 +325,43 @@ _nokey = [c for c in app.store.get(rid).state["stripe"]["customers"].values()
           if c.get("email") == "nokey@verify.test"]
 assert len(_nokey) == 2, f"没有钥匙的重试只写了 {len(_nokey)} 份 —— 对照组失效了"
 
+# 5d) 退避：重试的**节奏**。次数对了但节奏错了，在限流环境里就是"越撞越多"。
+_clock = []
+_runner = app.runner_for(rid)
+_runner.idempotent_writes = True
+_runner.client_retries = 3
+_runner.retry_backoff = 0.1
+_runner.retry_backoff_cap = 0.3
+_runner.jitter = 0.0
+_runner._sleep = _clock.append
+ch2.add_fault(app.store.get(rid), {"provider": "stripe", "method": "POST",
+                                   "path": "/v1/customers", "mode": "status",
+                                   "status": 500, "times": 4})
+_brec = _runner.call(Action("stripe", "POST", "/v1/customers", {"email": "backoff@verify.test"},
+                            headers={"authorization": f"Bearer {creds['stripe']}"}))
+assert _brec["status"] == 500, _brec["status"]
+assert _clock == [0.1, 0.2, 0.3], f"退避不是指数且没被 cap 截住：{_clock}"
+
+# Retry-After 优先于指数退避：限流窗口是服务端定的，客户端猜短的只会更糟
+ch2.add_rate_limit(app.store.get(rid), {"provider": "stripe", "limit": 1,
+                                        "window_seconds": 30, "retry_after": 2})
+_hit = app.runner_for(rid)
+_hit.idempotent_writes = True
+_hit.client_retries = 1
+_hit.retry_backoff = 0.01
+_hit.retry_backoff_cap = 30.0
+_hit.jitter = 0.0
+_clock2 = []
+_hit._sleep = _clock2.append
+_hit.call(Action("stripe", "POST", "/v1/customers", {"email": "ra1@verify.test"},
+                 headers={"authorization": f"Bearer {creds['stripe']}"}))
+_rrec = _hit.call(Action("stripe", "POST", "/v1/customers", {"email": "ra2@verify.test"},
+                         headers={"authorization": f"Bearer {creds['stripe']}"}))
+assert _rrec["status"] == 429, _rrec["status"]
+assert _clock2 == [2.0], f"没按 Retry-After 等：{_clock2}"
+ch2.clear(app.store.get(rid), "rate_limits")
+ch2.clear(app.store.get(rid), "rate_used")
+
 # 6) 并发写：基于旧世界的写必须被拒，而不是覆盖
 app.store.directory = None  # 内存里做不了跨进程，起一个临时目录的 Store
 import tempfile
