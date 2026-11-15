@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arga-clone"
+version = "0.1.0"
+description = "有状态 SaaS 孪生沙箱：给 AI agent 用的可写、可重试、可回滚的 Stripe/Slack/GitHub…"
+readme = "README.md"
+requires-python = ">=3.10"
+# 零运行时依赖是这套东西的设计前提，不是巧合：
+# 一个"给你试 agent"的环境如果自己要装 40 个包，就没人会把它塞进 CI。
+dependencies = []
+
+[project.optional-dependencies]
+# 仅测试需要。运行与接入（HTTP/MCP/SDK）全部只用 stdlib。
+test = ["pytest>=7"]
+
+[project.scripts]
+arga-clone = "argaclone.cli:main"
+
+[tool.setuptools]
+packages = ["argaclone", "argaclone.twins"]
+
+# 不在这里写 [tool.pytest.ini_options]：仓库里已有 pytest.ini，pytest 的配置优先级是
+# pytest.ini > pyproject.toml，两处并存时这里的设置会被静默忽略——那种"写了但没生效"
+# 的配置比没写更坏。

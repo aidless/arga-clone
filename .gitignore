@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+dist/
+build/
+*.egg-info/
+# 结果文件里有 run-scoped 假凭据，入库前必须确认已脱敏（AgentCompare 会 redact）
+!demo/agent_compare_smoke5.json
+.data/
+data/
+*.log
+.DS_Store
+demo/*.tmp
