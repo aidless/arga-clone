@@ -20,8 +20,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: 装包（零依赖，纯标准库）
-        run: pip install -e .
+      # 运行时零依赖，但 pytest 在 optional-dependencies[test] 里 —— 本机一直有 pytest，
+      # 所以这条错到第一次 CI 才露出来（首跑 19 秒红在 "No module named pytest"）。
+      - name: 装包（运行时零依赖 + 测试用的 pytest）
+        run: pip install -e ".[test]"
+
 
       - name: 测试套件
         run: python -m pytest -o addopts= -q
