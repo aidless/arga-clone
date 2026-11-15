@@ -307,13 +307,15 @@ def dispatch(runner, creds: dict, call: dict) -> str:
 
 
 def run_one(model: str, scenario: dict, app: App, twins: str,
-            chaos_profile: str = "off", idempotent_writes: bool = False) -> dict:
+            chaos_profile: str = "off", idempotent_writes: bool = False,
+            client_retries: int = 0) -> dict:
     view = app.provision({"twins": twins, "ttl": 900, "scenario_id": scenario["id"]})
     run_id = view["run_id"]
     applied_rules = apply_chaos(app, run_id, chaos_profile)
     creds = view["credentials"]
     runner = app.runner_for(run_id)
     runner.idempotent_writes = idempotent_writes
+    runner.client_retries = client_retries
 
     messages = [
         {"role": "system", "content": fill_tokens(SYSTEM, creds)},
@@ -382,6 +384,7 @@ def run_one(model: str, scenario: dict, app: App, twins: str,
             # `duplicate_writes` 会把"重试但安全"算成"重试且写了两遍"，
             # 而这正是这条能力唯一要量的东西。
             "replayed": bool(c.get("replayed")),
+                    "client_retries": int(c.get("client_retries") or 0),
             "endpoint": (
                 Twin._normalize(f'{c.get("method", "")} {c.get("path", "")}')
                 if c.get("stub")
@@ -402,6 +405,7 @@ def run_one(model: str, scenario: dict, app: App, twins: str,
         "model": model,
         "chaos": chaos_profile if applied_rules else "off",
         "idempotent_writes": idempotent_writes,
+        "client_retries_cfg": client_retries,
         "injected_failures": metrics["injected_failures"],
         "recovered": metrics["recovered"],
         "unrecovered": metrics["unrecovered"],
@@ -488,6 +492,9 @@ def main() -> int:
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--idempotency", action="store_true",
                     help="让 runner 像会正确使用幂等键的 SDK 那样给写请求带 Idempotency-Key")
+    ap.add_argument("--client-retries", type=int, default=0,
+                    help="客户端重试层：写请求遇到 5xx 时由 runner 用同一把钥匙重发几次。"
+                         "0 = 现造现报（模型自己重试，它重试时会改写措辞，于是钥匙也变了）")
     ap.add_argument("--chaos", default="off", choices=sorted(CHAOS_PROFILES),
                     help="故障剖面：flaky = 每个 episode 注入 4 条一次性故障")
     ap.add_argument("--runs", type=int, default=1,
@@ -530,7 +537,8 @@ def main() -> int:
     def work(model: str, sc: dict, run_index: int) -> dict:
         app = App(str(SCEN_DIR))  # 每个 episode 一个干净 store
         try:
-            out = run_one(model, sc, app, twins_for(sc), args.chaos, args.idempotency)
+            out = run_one(model, sc, app, twins_for(sc), args.chaos, args.idempotency,
+                          args.client_retries)
             out["run"] = run_index
             return out
         except Exception as exc:  # noqa: BLE001 - 单题炸掉不能拖垮整批
@@ -601,7 +609,7 @@ def main() -> int:
     if any(r.get("injected_failures") for r in results):
         print("\nresilience（注入 -> 自己修好 / 没修好）")
         print(f"{'model':<34}{'episodes':>9}{'injected':>10}{'recovered':>11}"
-              f"{'unrecovered':>13}{'dup writes':>12}")
+              f"{'unrecovered':>13}{'dup writes':>12}{'cli retries':>13}")
         for m in args.models:
             rs = [r for r in results if r["model"] == m]
             if not rs:
@@ -610,7 +618,11 @@ def main() -> int:
             rec = sum(r.get("recovered", 0) for r in rs)
             unrec = sum(r.get("unrecovered", 0) for r in rs)
             dup = sum(r.get("duplicate_writes", 0) for r in rs)
-            print(f"{m:<34}{len(rs):>9}{inj:>10}{rec:>11}{unrec:>13}{dup:>12}")
+            # 客户端重试次数与"重复写入"并列：前者是药，后者是病。
+            # 只报 dup 会看不出是谁的功劳（是模型没重试，还是客户端替它安全地重试了）。
+            retried = sum(1 for r in rs for c in r.get("calls_detail", [])
+                          if c.get("client_retries"))
+            print(f"{m:<34}{len(rs):>9}{inj:>10}{rec:>11}{unrec:>13}{dup:>12}{retried:>12}")
 
     print(f"\nwrote {args.out}")
     print(f"elapsed {elapsed:.1f}s")

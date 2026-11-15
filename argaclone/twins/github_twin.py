@@ -614,6 +614,19 @@ class GitHubTwin(Twin):
         rels.append(f'{url(last)}; rel="last"')
         return Response(200, window, {"Link": ", ".join(rels)})
 
+    def _paged_wrapped(self, req: Request, items: list[dict[str, Any]], key: str) -> Response:
+        """包装形列表（`{total_count, <key>: [...]}`）的分页。
+
+        为什么不能让调用方自己把 body 解开再加 Link：`total_count` 必须是**总数**
+        而不是本页条数，客户端拿它算页数。回本页条数会让"翻两页"变成"翻一页就说完了"。
+        """
+        window = self._paged(req, items)
+        return Response(
+            window.status,
+            {"total_count": len(items), key: window.body},
+            window.headers,
+        )
+
     def list_issues(self, req: Request, params: dict[str, str]) -> Response:
         if (bad := self._check(req, "repo")) is not None:
             return bad
@@ -717,7 +730,7 @@ class GitHubTwin(Twin):
         pulls = self.req_state(req).get("pulls", {}).get(f"{params['owner']}/{params['repo']}")
         if pulls is None:
             return self._not_found()
-        return Response(200, sorted(pulls.values(), key=lambda p: -p["number"]))
+        return self._paged(req, sorted(pulls.values(), key=lambda p: -p["number"]))
 
     def create_pull(self, req: Request, params: dict[str, str]) -> Response:
         if (bad := self._check(req, "repo")) is not None:
@@ -1673,7 +1686,7 @@ class GitHubTwin(Twin):
         if key not in self.req_state(req).get("repos", {}):
             return self._not_found()
         rows = self.req_state(req).setdefault("releases", {}).setdefault(key, [])
-        return Response(200, [self._release_obj(key, r) for r in rows])
+        return self._paged(req, [self._release_obj(key, r) for r in rows])
 
     def create_release(self, req: Request, params: dict[str, str]) -> Response:
         if (bad := self._check(req, "repo")) is not None:
@@ -1865,7 +1878,7 @@ class GitHubTwin(Twin):
         env = req.query_one("environment")
         if env:
             rows = [d for d in rows if d.get("environment") == env]
-        return Response(200, rows)
+        return self._paged(req, list(rows))
 
     def create_deployment(self, req: Request, params: dict[str, str]) -> Response:
         if (bad := self._check(req, "repo")) is not None:
@@ -1962,7 +1975,10 @@ class GitHubTwin(Twin):
         branch = req.query_one("branch")
         if branch:
             rows = [r for r in rows if r.get("head_branch") == branch]
-        return Response(200, {"total_count": len(rows), "workflow_runs": rows})
+        # 这条要按"包装过的列表"分页：body 是 {total_count, workflow_runs}，
+        # 但 Link 头跟裸数组一样。只对裸数组分页会让这个端点静默回全量 ——
+        # 那正是 §23.4 里"Link 只做了 issues 与 commits"那条自报缺口。
+        return self._paged_wrapped(req, rows, "workflow_runs")
 
     def dispatch_workflow(self, req: Request, params: dict[str, str]) -> Response:
         if (bad := self._check(req, "workflow")) is not None:

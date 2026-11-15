@@ -135,3 +135,86 @@ def test_red_dropping_the_link_header_breaks_a_doc_following_client(world, monke
     resp = _get(app, rid, "/repos/acme/big/issues?state=all")
     assert len(resp.body) == 40          # 一次全给
     assert "Link" not in resp.headers    # 没有任何翻页信号
+
+
+# ---------------------------------------------------------------- 四个后来补上的端点
+#
+# §23.4 曾自报"Link 只做了 issues 与 commits"。补的时候最容易犯的错是**只补裸数组**，
+# 于是 `actions/runs`（body 是 {total_count, workflow_runs}）静默回全量 ——
+# 客户端拿 total_count 算页数，一次拿全也不报错，缺陷只在 60 条以上数据时才露出来。
+
+
+@pytest.fixture()
+def wide_world(tmp_path):
+    """58 条数据的世界：刚好两页，且第二页不满 —— 才能测"没有 next"。"""
+    app = App("scenarios", data_dir=tmp_path / "s2")
+    view = app.provision({"twins": "github", "ttl": 600})
+    rid = view["run_id"]
+    state = app.store.get(rid).state["github"]
+    state["repos"]["acme/wide"] = {
+        "id": 9, "name": "wide", "full_name": "acme/wide", "private": False,
+        "stargazers_count": 0, "default_branch": "main",
+    }
+    state["pulls"]["acme/wide"] = {
+        n: {"number": n, "title": f"pr {n}", "state": "open"} for n in range(1, 59)
+    }
+    state["releases"]["acme/wide"] = [
+        {"id": 1000 + n, "tag_name": f"v{n}.0.0", "name": f"v{n}"} for n in range(1, 59)
+    ]
+    state["deployments"]["acme/wide"] = [
+        {"id": 2000 + n, "ref": "main", "environment": "prod"} for n in range(1, 59)
+    ]
+    state["actions_runs"]["acme/wide"] = [
+        {"id": 3000 + n, "head_branch": "main", "status": "completed"} for n in range(1, 59)
+    ]
+    return app, rid
+
+
+@pytest.mark.parametrize("path,unwrap", [
+    ("/repos/acme/wide/pulls", None),
+    ("/repos/acme/wide/releases", None),
+    ("/repos/acme/wide/deployments", None),
+    ("/repos/acme/wide/actions/runs", "workflow_runs"),
+])
+def test_list_endpoints_page_like_github(wide_world, path, unwrap):
+    app, rid = wide_world
+    first = _get(app, rid, path)
+    assert first.status == 200
+    body = first.body[unwrap] if unwrap else first.body
+    assert len(body) == 30
+    links = _links(first)
+    assert "next" in links and "page=2" in links["next"]
+
+    second = _get(app, rid, path + "&page=2" if "?" in path else path + "?page=2")
+    body2 = second.body[unwrap] if unwrap else second.body
+    assert len(body2) == 28
+    assert "next" not in _links(second), "最后一页不许给 next —— 给了就会翻到空数组才停"
+
+
+def test_wrapped_list_keeps_total_count_of_the_whole_set(wide_world):
+    """`total_count` 必须是总数，不是本页条数。"""
+    app, rid = wide_world
+    first = _get(app, rid, "/repos/acme/wide/actions/runs")
+    assert first.body["total_count"] == 58
+    assert len(first.body["workflow_runs"]) == 30
+
+    second = _get(app, rid, "/repos/acme/wide/actions/runs?page=2")
+    assert second.body["total_count"] == 58, "第二页把 total_count 算成本页条数了"
+
+
+def test_red_paging_the_bare_array_only_would_leak_the_wrapper(wide_world, monkeypatch):
+    """反证：把 actions/runs 换成"只分页裸数组、不回包装"，第一条断言必须红。
+
+    这条守的是"补端点时只补了一半"。如果哪天有人把 `_paged_wrapped` 改回
+    `Response(200, rows)`，它抓不到 —— 抓它的是上面那条 total_count。
+    所以这里反过来红一次，证明判据对着那个具体形状。
+    """
+    app, rid = wide_world
+
+    def bare(self, req, items, key):
+        return self._paged(req, items)      # 忘了包装
+
+    monkeypatch.setattr(type(app.gateway.registry.get("github")), "_paged_wrapped", bare)
+    resp = _get(app, rid, "/repos/acme/wide/actions/runs")
+    assert isinstance(resp.body, list), "包装丢了 —— 客户端会拿不到 total_count"
+    assert "workflow_runs" not in resp.body

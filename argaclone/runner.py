@@ -65,6 +65,7 @@ def empty_trace() -> dict[str, Any]:
         "stub_calls": 0,
         "absent_calls": 0,
         "error_calls": 0,
+        "client_retries": 0,
         "path_sequence": [],
         "bodies": [],
         "writes": [],
@@ -111,7 +112,13 @@ class Runner:
     让语义更真——真不真取决于 twin 的实现，不取决于有没有过网线。
     """
 
-    def __init__(self, gateway: Gateway, run_id: str, idempotent_writes: bool = False) -> None:
+    def __init__(
+        self,
+        gateway: Gateway,
+        run_id: str,
+        idempotent_writes: bool = False,
+        client_retries: int = 0,
+    ) -> None:
         self.gateway = gateway
         self.run_id = run_id
         self.calls: list[dict[str, Any]] = []
@@ -120,6 +127,16 @@ class Runner:
         # 这个概念，只能用 (provider, method, path, body) 派生。所以它证明的是
         # "服务端支持幂等键之后重复写入会消失"，不是"模型知道该用幂等键"。
         self.idempotent_writes = idempotent_writes
+        # 客户端重试层：模拟真实 SDK 在"一次逻辑操作"内部的传输级重试。
+        #
+        # 为什么需要它：`commit_then_fail` 之后，模型看到 500 会重试 —— 这是对的行为。
+        # 但模型的重试是**重新组织一次请求**（措辞、字段都可能变），而真实 SDK 重试的是
+        # 同一个已经序列化好的请求，钥匙和 body 都不变。两者在服务端看起来完全不同：
+        # 前者是一笔新操作（Stripe 也会写两次），后者才是幂等键能挡的那一种。
+        #
+        # 所以这个参数量的不是"模型聪不聪明"，而是"**客户端建对了之后，这个环境能不能
+        # 给出恰好一次**"。0 = 现造现报（模型自己重试），>0 = 假装客户端有重试层。
+        self.client_retries = max(0, int(client_retries))
 
     def _host(self, provider: str) -> str:
         return f"{provider}.{self.run_id}.twins.local"
@@ -136,11 +153,26 @@ class Runner:
                 hashlib.sha256((seed + body.decode("utf-8", "replace")).encode()).hexdigest()[:32],
             )
 
-        resp = self.gateway.handle(
-            action.method, self._host(action.provider), raw_path, headers, body
-        )
-        payload = resp.body
-        ok = is_success(action.provider, resp.status, payload)
+        # 客户端重试层：只重试**传输级失败**（5xx / 响应没落地），不重试 4xx。
+        # 4xx 是语义拒绝，重发一遍只会得到同一个 4xx —— 那是日志噪声，不是韧性。
+        attempts = 0
+        is_write_call = _is_write(action.provider, action.method.upper(), action.path)
+        while True:
+            resp = self.gateway.handle(
+                action.method, self._host(action.provider), raw_path, headers, body
+            )
+            payload = resp.body
+            ok = is_success(action.provider, resp.status, payload)
+            # 注意这里**不要求** idempotent_writes：不带钥匙的客户端也会重试，
+            # 而那正是重复扣款的来源。把"重试"绑在"有钥匙"上，等于让对照组消失。
+            if (
+                not is_write_call
+                or ok
+                or resp.status < 500
+                or attempts >= self.client_retries
+            ):
+                break
+            attempts += 1
 
         record = {
             "n": len(self.calls) + 1,
@@ -160,6 +192,11 @@ class Runner:
             # 必须排除它 —— 否则"重试但安全"会被算成"重试且写了两遍"，
             # 正好把这条能力买到的效果抹掉。
             "replayed": resp.headers.get("Idempotent-Replayed") == "true",
+            # 客户端替它重试了几次。与 replayed 分开记：一次 500 之后重试成功，
+            # 若中间那次是同一个钥匙，服务端只写了 1 遍；若钥匙变了（模型改写），
+            # 就会写 2 遍 —— 这两件事在报表上必须能分开，否则"重试"这个词
+            # 既可能是药的功劳，也可能是病的来源。
+            "client_retries": attempts,
             "error": None if ok else self._error_of(payload),
             "request": action.body or None,
             # 响应体必须留在 record 里。没有它，agent 看到的是"状态码 200、
@@ -228,6 +265,7 @@ class Runner:
             "stub_calls": sum(1 for c in self.calls if c["stub"]),
             "absent_calls": sum(1 for c in self.calls if c.get("absent")),
             "error_calls": sum(1 for c in self.calls if not c["ok"]),
+            "client_retries": sum(c.get("client_retries", 0) for c in self.calls),
             "path_sequence": [f"{c['provider']}:{c['method']} {c['path']}" for c in self.calls],
             # 写请求的 body 被序列化成字符串列表。为什么需要这个：
             # 只看 path_sequence 无法区分"发到了 #marketing-ops"还是"发到了 #announcements"，
@@ -247,6 +285,9 @@ class Runner:
                     # 重放标记要跟着写记录走。否则 trace 里两个 200 长得一样，
                     # 而一个是"世界变了两次"、一个"世界只变了一次"。
                     "replayed": c.get("replayed", False),
+                    # 客户端在这个动作内部替调用方重试了几次。它和 replayed 一起
+                    # 才说明"恰好一次"是怎么来的：重试提供结果，钥匙提供唯一性。
+                    "client_retries": c.get("client_retries", 0),
                 }
                 for c in writes
             ],

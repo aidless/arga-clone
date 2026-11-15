@@ -293,6 +293,38 @@ _idem = [c for c in app.store.get(rid).state["stripe"]["customers"].values()
          if c.get("email") == "idem@verify.test"]
 assert len(_idem) == 1, f"重试建了 {len(_idem)} 份"
 
+# 5c) 客户端重试层：模型看到 500 会自己重发，但它重发时**会改写措辞**（钥匙跟着变），
+#     于是又写一遍。真实 SDK 的重试发生在一次逻辑操作内部，重发的是同一份请求。
+#     这一段证明"客户端建对之后环境能给出恰好一次"，并证明没有钥匙时它照样写两遍。
+from argaclone.runner import Action
+ch2.add_fault(app.store.get(rid), {"provider": "stripe", "method": "POST",
+                                   "path": "/v1/customers", "mode": "commit_then_fail",
+                                   "status": 500, "times": 1})
+_runner = app.runner_for(rid)
+_runner.idempotent_writes = True
+_runner.client_retries = 2
+_rec = _runner.call(Action("stripe", "POST", "/v1/customers", {"email": "cli@verify.test"},
+                           headers={"authorization": f"Bearer {creds['stripe']}"}))
+assert _rec["status"] == 200 and _rec["client_retries"] == 1, _rec
+assert _rec["replayed"] is True, "重试没拿到第一次那份响应 —— 说明钥匙变了"
+_cli = [c for c in app.store.get(rid).state["stripe"]["customers"].values()
+        if c.get("email") == "cli@verify.test"]
+assert len(_cli) == 1, f"客户端重试写成了 {len(_cli)} 份"
+
+# 对照组：同一套重试、只是不带钥匙 —— 必须写两遍。去掉这一段，上面那条就分不清
+# "恰好一次"是钥匙买的还是重试买的。
+ch2.add_fault(app.store.get(rid), {"provider": "stripe", "method": "POST",
+                                   "path": "/v1/customers", "mode": "commit_then_fail",
+                                   "status": 500, "times": 1})
+_bare = app.runner_for(rid)
+_bare.idempotent_writes = False
+_bare.client_retries = 2
+_bare.call(Action("stripe", "POST", "/v1/customers", {"email": "nokey@verify.test"},
+                  headers={"authorization": f"Bearer {creds['stripe']}"}))
+_nokey = [c for c in app.store.get(rid).state["stripe"]["customers"].values()
+          if c.get("email") == "nokey@verify.test"]
+assert len(_nokey) == 2, f"没有钥匙的重试只写了 {len(_nokey)} 份 —— 对照组失效了"
+
 # 6) 并发写：基于旧世界的写必须被拒，而不是覆盖
 app.store.directory = None  # 内存里做不了跨进程，起一个临时目录的 Store
 import tempfile
@@ -313,7 +345,7 @@ except StaleRunVersion:
     pass
 
 print("   故障注入 500/一次 / 429+Retry-After / Link 翻页不重叠 / 事件签名可验 / 并发写被拒"
-      " / 写已生效但响应失败 / 幂等键重放不重复写")
+      " / 写已生效但响应失败 / 幂等键重放不重复写 / 客户端重试只在有钥匙时安全")
 PYEOF
 
 echo "== 11/12 README 数字可复算（文档不漂移）=="
