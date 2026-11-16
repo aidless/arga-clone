@@ -7,7 +7,7 @@
 `base_url` and your Stripe / Slack / GitHub / Salesforce / Jira / Notion / HubSpot /
 Linear / Gmail / Google Calendar / Google Drive code runs against a writable,
 retry-safe, resettable simulator instead of production. 11 twins, 281 routes,
-80 hand-written tasks across 5 domains, 647 tests, zero third-party runtime
+80 hand-written tasks across 5 domains, 652 tests, zero third-party runtime
 dependencies (pure stdlib), and three access surfaces (HTTP · MCP · SDK).
 Every number in this README is recomputable from the files in this repo
 (`scripts/check_readme.py` fails the build when the docs drift from the code).
@@ -16,7 +16,7 @@ Every number in this README is recomputable from the files in this repo
 可写、可重试、可回滚、坏了也不伤真实数据的 Stripe / Slack 上跑。
 
 这是对 [Arga Labs](https://argalabs.com) 那套产品的技术复刻，零第三方依赖（纯 stdlib）：
-**11 个 twin / 281 条路由 / 80 道五域任务 / 79 道 gold 可解性证明 / 647 个测试全绿 /
+**11 个 twin / 281 条路由 / 80 道五域任务 / 79 道 gold 可解性证明 / 652 个测试全绿 /
 480 episodes 真模型实测（含 Wilson 区间与配对检验）/ 三条接入面（HTTP·MCP·SDK）/
 声明式边界（哪些端点"不打算做"）、run-scoped 严格令牌、故障注入（含
 "写已生效但响应失败"）、幂等键与客户端重试层、Link 分页、事件投递、乐观并发**。
@@ -25,7 +25,7 @@ Every number in this README is recomputable from the files in this repo
 git clone https://github.com/aidless/arga-clone && cd arga-clone
 pip install -e .            # 零运行时依赖，只装一个 entry point
 python3 -m argaclone.cli serve --port 8787        # 起服务（admin + 全部 twin 单端口）
-python3 -m pytest                                 # 647 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
+python3 -m pytest                                 # 652 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
 python3 demo/run_demo.py                          # 三种 agent 行为 → 三种判决
 python3 demo/agent_compare.py --limit 1           # 真模型跑 benchmark（需本地 LLM 网关）
 bash scripts/verify.sh                            # 十二层验收，任何一层红了就停
@@ -281,7 +281,7 @@ argaclone/
   mcp_server.py     MCP（Streamable HTTP / JSON-RPC 2.0）六工具，自动注入 run 凭据
   client.py         Python SDK（纯 urllib），只做 HTTP 不替服务端算状态
   cli.py            serve / twin-runs / scenarios / act / grade / state
-tests/              647 个用例，含 12 条 RED 反证
+tests/              652 个用例，含 12 条 RED 反证
   contracts/        跨 twin 契约层：新增 twin 未登记即 CI 红
 scenarios/          80 道任务 JSON（生成自 suite_*.py / suite_extra.py）+ build_suite.py 生成器
   suite_it.py / suite_crm.py / suite_mkt.py / suite_dev.py / suite_ecom.py
@@ -799,7 +799,7 @@ agent 会拿到"这个 CRM 里只有 3 个联系人"这个假事实，然后基�
 `twins/salesforce_twin.py`，36 条路由，工厂产出 + 三处必须手写的地方。它带来的是
 **第五种列表信封**和一条比信封更狠的教训，见下一节。
 
-当前规模：**11 个 twin / 281 条路由 / 80 道题 / 647 个测试全绿 / 十二层验收全过**。
+当前规模：**11 个 twin / 281 条路由 / 80 道题 / 652 个测试全绿 / 十二层验收全过**。
 
 ## 17. 错误体是数组：形状保真里最便宜的一条，也最容易被糊过去（2026-11-13）
 
@@ -924,7 +924,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
    声明式 stub：欠账 1 / 边界 1；严格令牌：假 401 / 真 200；默认模式放行（已知局限）
 ```
 
-`pytest` → **647 passed**，`bash scripts/verify.sh` → 十二层全过。
+`pytest` → **652 passed**，`bash scripts/verify.sh` → 十二层全过。
 
 ### 18.4 仍然没证明的
 
@@ -973,7 +973,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
 
 ```
 1/11 场景定义合法性        7/11 MCP 端点
-2/12 pytest（647）         8/12 SDK + PR 钩子
+2/12 pytest（652）         8/12 SDK + PR 钩子
 3/11 三态判分演示          9/11 边界与凭据（声明式 stub / 严格令牌）
 4/11 HTTP 面冒烟          10/11 README 数字可复算   ← 本轮新增
 5/12 gold 39/39           11/11 真模型冒烟（可选）
@@ -1864,9 +1864,40 @@ MIT —— 见 [LICENSE](LICENSE)。Copyright (c) 2026 YG.
 2. **换成罚站语义后，退避的收益表现为"失败暴露次数"而不是"通过率"** ——
    同样的题、同样的模型、同样的重试预算，16 次 vs 0 次。
 
+### 28.6 把罚站加长到"等不起"：24 步 vs 7 步
+
+上一版罚站最长 3s，模型等得起，所以 16 次暴露没变成错。这一版把它加到 **20s 起、封顶 60s**，
+预算只有 3 次 —— 这道题上"等 20 秒"比"换个办法"贵。
+
+新剖面 `stubborn` 只挂在 `crm-01` / `crm-02` 两道题上（`CHAOS_SCOPED_SCENARIOS`）：
+一个等不起的剖面如果挂在全部 80 题，墙钟是几小时，而结论两道题就够。
+
+| 题 | 配置 | 判定 | 步数 | 跑完 | 模型看到 429 | 客户端重试 | 墙钟 |
+|---|---|---|---|---|---|---|---|
+| crm-01 | 退避 30s | PASS | **7** | 是 | 0 | 0 | 23.9s |
+| crm-01 | 不退避 | PASS | **24**（撞步数上限） | **否** | 18 | 36 | — |
+| crm-02 | 退避 30s | PASS | 5 | 是 | 0 | 0 | 同上 |
+| crm-02 | 不退避 | PASS | 7 | 是 | 0 | 0 | 117.1s |
+
+两臂都 PASS，但**不退避臂在 crm-01 上把 24 步预算烧光了**（`finished=false`）：
+从第 7 步开始每一步都在撞 `chat.postMessage` 的 429，撞一次解封更晚，它就一直撞到上限。
+判分只查世界状态，所以它仍然 PASS —— 这件事本身就是这一节最有用的读数：
+
+> **罚站买到的是"步数"，不是"正确率"。** 模型做对了，但它把整个预算花在了重试上。
+
+第二条读数跟我自己的一个 bug 有关，值得单独写出来：第一次跑这一版时，罚站 20s 被
+`retry_backoff_cap=2.0` **截成 2s**（`_wait_before_retry` 里 `min(secs, cap)`），于是
+"尊重 `Retry-After`"的客户端 2 秒后就回来接着撞，看起来像它根本没退避。
+`cap` 该管的是**我们自己猜的**指数曲线，不是服务端给的指令 —— 现在改成 `Retry-After` 原样返回，
+`test_retry_after_is_not_clamped_by_our_own_cap` 钉住。
+
 ### 28.6 这一节仍没证明的
 
-0. **罚站语义下"通过率为什么不分开"仍未解释清楚**。退避臂 70/80、不退避臂 72/80，
+0. **罚站语要下"通过率为什么不分开"这个问题现在有答案了**：不是罚站没用，是判分只看世界状态，
+   而罚站消耗的是**步数预算**。§28.6 的 24 步 vs 7 步就是它的形状。但仍未证明的是：
+   步数烧光在某些题上会不会直接导致错（crm-01 上世界已经改对了，所以没变成错）。
+   下面这条是第一版罚站（3s 封顶）留下的记录，保留以说明为什么要把罚站加长：
+退避臂 70/80、不退避臂 72/80，
    差额落在 p=0.727 的噪声区间里；两臂丢的题还互不相同（退避丢 crm-10 / dev-06 / ecom-05，
    不退避丢 crm-11 / dev-07 / it-04…）。能说清的是"暴露次数差 16 比 0"，**不能**说清
    "那 16 次暴露本来会不会变成错"。要能说清，得让模型在罚站里真的卡住 ——

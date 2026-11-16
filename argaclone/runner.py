@@ -181,7 +181,12 @@ class Runner:
             except ValueError:
                 secs = None
             if secs is not None and secs >= 0:
-                return min(secs, self.retry_backoff_cap or secs)
+                # **不拿自家 cap 去截服务端给的 `Retry-After`**。
+                # cap 管的是我们自己猜的那条指数曲线；服务端说的是事实。
+                # 实测代价：罚站 `Retry-After: 20` 被默认 cap=2.0 截成 2s，
+                # 于是"尊重 Retry-After"的客户端 2 秒后就回来继续撞 —— 看起来像
+                # 它没退避，其实是我把它的等待改小了。
+                return secs
         ceiling = min(self.retry_backoff * (2 ** (attempt - 1)), self.retry_backoff_cap)
         if self.jitter <= 0:
             return ceiling

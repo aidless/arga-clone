@@ -92,6 +92,15 @@ CHAOS_PROFILES: dict[str, list[dict]] = {
         {"provider": "*", "method": "POST", "path": "/**", "mode": "status",
          "status": 503, "times": 1, "message": "service unavailable"},
     ],
+    # stubborn = 罚站 20s 起、封顶 60s、预算只有 3 次。
+    #
+    # 这一档故意做得"等不起"：模型不会为了一个 200 等 20 秒，它会换路、会放弃、
+    # 会认为自己被限流了。于是"退避"这个能力第一次有了**代价**的对照面 ——
+    # §28.5 的罚站最长 3s，模型等得起，所以 16 次暴露没有变成错。
+    #
+    # 只挂在两道题上（见 CHAOS_SCOPED_SCENARIOS）：全量 80 题每题都可能真睡
+    # 20-60 秒，那是几小时的墙钟，而结论只需要两道题就能看出来。
+    "stubborn": [],
 }
 
 # 限流单独一张表：它不是 fault（不进 X-Twin-Fault 的计数），而是窗口规则。
@@ -106,11 +115,26 @@ CHAOS_RATE_LIMITS: dict[str, list[dict]] = {
     # 窗口早滚过去了。罚站把"撞"这个动作本身变成代价，于是退避与不退避在分数上才分得开。
     "throttled": [{"provider": "*", "limit": 6, "window_seconds": 600,
                    "penalty_seconds": 0.3, "max_penalty_seconds": 3.0, "retry_after": 1}],
+    "stubborn": [{"provider": "*", "limit": 3, "window_seconds": 900,
+                  "penalty_seconds": 20.0, "max_penalty_seconds": 60.0, "retry_after": 20}],
+}
+
+# 剖面只在指定题目上生效。为什么需要这个：一个"等不起"的剖面如果挂到全部 80 题，
+# 墙钟会变成几小时，而结论只需要两道题 —— 判据的强度来自剖面本身，不来自题数。
+CHAOS_SCOPED_SCENARIOS: dict[str, tuple[str, ...]] = {
+    "stubborn": ("crm-01", "crm-02"),
 }
 
 
-def apply_chaos(app: App, run_id: str, profile: str) -> int:
-    """给这次 episode 的 run 挂上故障。返回挂了几条（0 = 没挂）。"""
+def apply_chaos(app: App, run_id: str, profile: str, scenario_id: str = "") -> int:
+    """给这次 episode 的 run 挂上故障。返回挂了几条（0 = 没挂）。
+
+    `CHAOS_SCOPED_SCENARIOS` 里的剖面只对它点名的题生效 —— 这样"等不起的罚站"
+    可以只花两道题的墙钟，而不是 80 道。
+    """
+    scoped = CHAOS_SCOPED_SCENARIOS.get(profile or "off")
+    if scoped and not any(key in scenario_id for key in scoped):
+        return 0
     rules = CHAOS_PROFILES.get(profile or "off") or []
     limits = CHAOS_RATE_LIMITS.get(profile or "off") or []
     if not rules and not limits:
@@ -373,7 +397,7 @@ def run_one(model: str, scenario: dict, app: App, twins: str,
             client_retries: int = 0, retry_backoff: float = 0.0) -> dict:
     view = app.provision({"twins": twins, "ttl": 900, "scenario_id": scenario["id"]})
     run_id = view["run_id"]
-    applied_rules = apply_chaos(app, run_id, chaos_profile)
+    applied_rules = apply_chaos(app, run_id, chaos_profile, scenario["id"])
     creds = view["credentials"]
     runner = app.runner_for(run_id)
     runner.idempotent_writes = idempotent_writes
@@ -544,6 +568,9 @@ def main() -> int:
     ap.add_argument("--runs", type=int, default=1,
                     help="每个 (模型, 题目) 重复几轮。多轮是为了算配对的轮间一致性，"
                          "单轮分数差 12pt 以内分不出先后")
+    ap.add_argument("--only", default="",
+                    help="只跑 id 含这些子串的题（逗号分隔）。配合 scoped 剖面用："
+                         "一个'等不起'的剖面不需要跑满 80 题才能读出结论")
     ap.add_argument("--out", default=str(ROOT / "demo" / "agent_compare_results.json"))
     args = ap.parse_args()
 
@@ -557,6 +584,11 @@ def main() -> int:
 
     files = sorted(SCEN_DIR.glob("*.json"))
     scenarios = [json.loads(p.read_text()) for p in files]
+    only = [t.strip() for t in (args.only or "").split(",") if t.strip()]
+    if only:
+        scenarios = [s for s in scenarios if any(t in s["id"] for t in only)]
+        if not scenarios:
+            raise SystemExit(f"--only {only} 没匹配到任何题")
 
     if args.limit:
         by_domain: dict[str, int] = {}

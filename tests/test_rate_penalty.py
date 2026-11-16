@@ -112,3 +112,33 @@ def test_red_immediate_retries_push_the_penalty_further(world):
     rule = app.store.get(rid).extras["rate_limits"][0]
     # 撞了 1(窗口) + 4(重试) 次，罚站被推后了同样的次数
     assert int(rule["violations"]) >= 4, rule["violations"]
+
+
+def test_sixty_second_penalty_is_really_waited_out(world):
+    """罚站 20s、封顶 60s：退避的客户端**真等得起**，只是等得久。
+
+    这一条不是在测"它能过"，是在测"这个剖面确实是'等不起'的量级"——
+    判据是等待时长落在 [20s, 60s] 带内。用注入的假 sleep 断言，不真睡。
+    """
+    app, rid, creds = world
+    rule = _budget(app, rid, limit=3, window=900.0, penalty=20.0, max_penalty=60.0)
+    for i in range(3):
+        app.gateway.handle("GET", f"stripe.{rid}.twins.local", "/v1/customers",
+                            {"authorization": f"Bearer {creds['stripe']}"}, b"")
+    resp = app.gateway.handle("GET", f"stripe.{rid}.twins.local", "/v1/customers",
+                              {"authorization": f"Bearer {creds['stripe']}"}, b"")
+    assert resp.status == 429
+    assert 20 <= float(resp.headers["Retry-After"]) <= 61, resp.headers["Retry-After"]
+
+    runner = app.runner_for(rid)
+    runner.client_retries = 1
+    runner.retry_backoff = 22.0
+    runner.retry_backoff_cap = 60.0
+    runner.jitter = 0.0
+    slept = []
+    runner._sleep = slept.append
+    # 注意：上面那次探测自己又撞了一回，所以罚站已经加长到 20*1.5 = 30s。
+    # 这正是"每撞一次解封更晚"的语义 —— 断言 30 而不是 20，才是在测这条语义。
+    rec = runner.call(_get(creds))
+    assert rec["retry_waits"] == [30.0], rec["retry_waits"]
+    assert slept == [30.0]

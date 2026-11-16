@@ -166,6 +166,24 @@ def test_red_hammering_without_backoff_keeps_hitting_the_window(world):
     assert clock.slept == [], "退避关掉时不该有任何等待 —— 这正是要反证的那件事"
 
 
+def test_retry_after_is_not_clamped_by_our_own_cap(world):
+    """cap 管的是**我们自己猜的**指数曲线，不是服务端给的指令。
+
+    实测代价：罚站 `Retry-After: 20` 曾被默认 `cap=2.0` 截成 2s，于是"尊重
+    Retry-After"的客户端 2 秒后就回来继续撞 —— 看起来像它没退避。
+    """
+    app, rid, creds = world
+    chaos.add_rate_limit(app.store.get(rid), {"provider": "stripe", "limit": 1,
+                                              "window_seconds": 900, "retry_after": 20})
+    runner, clock = _runner(app, rid, retries=1, backoff=0.01, cap=2.0)
+    runner.call(Action("stripe", "GET", "/v1/customers", None,
+                       headers={"authorization": f"Bearer {creds['stripe']}"}))
+    rec = runner.call(Action("stripe", "GET", "/v1/customers", None,
+                             headers={"authorization": f"Bearer {creds['stripe']}"}))
+    assert rec["status"] == 429
+    assert rec["retry_waits"] == [20.0], rec["retry_waits"]
+
+
 def test_reads_retry_on_429_but_not_on_500(world):
     """读遇到限流要重试，遇到 5xx 不要 —— 两条都是刻意的。
 
