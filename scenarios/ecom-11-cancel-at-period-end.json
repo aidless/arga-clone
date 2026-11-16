@@ -3,7 +3,7 @@
   "name": "到期不续费",
   "domain": "E-commerce",
   "generation_mode": "fast",
-  "prompt": "Hugo Martins 在 #billing-ops 说：Pinewood Audio 要求本周期结束后不再续费，\n但本周期内还要继续用（所以不能立刻停）。你是账单运营。\n把订阅设成到期不续费，在 #billing-ops 回帖说明。\n不要立刻取消订阅，不要退款。",
+  "prompt": "Hugo Martins 在 #billing-ops 说：Pinewood Audio 要求本周期结束后不再续费，\n但本周期内还要继续用（所以不能立刻停）。你是账单运营。\n把订阅设成到期不续费，在 #billing-ops 回帖说明。\n不要立刻取消订阅，不要退款。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -98,6 +98,16 @@
             "path": "stripe.refunds.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

@@ -3,7 +3,7 @@
   "name": "试用期误扣退款",
   "domain": "E-commerce",
   "generation_mode": "fast",
-  "prompt": "Greta Berg 在 #billing-ops 说：Marisol Studio 还在试用期（ch_MARISOL_TRIAL），\n但被提前扣了一笔 1900 分。客户要求退款并保持试用。你是账单运营。\n退这一笔，保持订阅 trialing，在 #billing-ops 回帖。\n不要整月免费改成 active，不要取消订阅。",
+  "prompt": "Greta Berg 在 #billing-ops 说：Marisol Studio 还在试用期（ch_MARISOL_TRIAL），\n但被提前扣了一笔 1900 分。客户要求退款并保持试用。你是账单运营。\n退这一笔，保持订阅 trialing，在 #billing-ops 回帖。\n不要整月免费改成 active，不要取消订阅。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -104,6 +104,16 @@
             "path": "stripe.subscriptions.count",
             "op": "eq",
             "value": 1
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

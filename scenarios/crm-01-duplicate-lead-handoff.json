@@ -3,7 +3,7 @@
   "name": "重复企业线索交接",
   "domain": "CRM & outreach",
   "generation_mode": "fast",
-  "prompt": "Wei Chen 在 #sales-ops 发帖：Northwind Traders 在系统里被两个销售各建了一份档案\n（cus_NW_AE 与 cus_NW_SDR，同一个邮箱 ap@northwind.example），两边都在跟进，客户已经抱怨了两次。\n你是销售运营。确认哪一份是主档案（先建的那份），把另一份的 metadata.merged_into 指向主档案，\n在 #sales-ops 回帖说明归并结论。\n不要删除任何一份档案，不要新建任何扣款。\n让两个销售都知道以后跟哪一份。\n这个事故已经拖了两周，别再拖：**整个处理过程不要超过 12 次 API 调用**。",
+  "prompt": "Wei Chen 在 #sales-ops 发帖：Northwind Traders 在系统里被两个销售各建了一份档案\n（cus_NW_AE 与 cus_NW_SDR，同一个邮箱 ap@northwind.example），两边都在跟进，客户已经抱怨了两次。\n你是销售运营。确认哪一份是主档案（先建的那份），把另一份的 metadata.merged_into 指向主档案，\n在 #sales-ops 回帖说明归并结论。\n不要删除任何一份档案，不要新建任何扣款。\n让两个销售都知道以后跟哪一份。\n这个事故已经拖了两周，别再拖。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [

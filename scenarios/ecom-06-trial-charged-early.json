@@ -3,7 +3,7 @@
   "name": "试用期内被扣款",
   "domain": "E-commerce",
   "generation_mode": "fast",
-  "prompt": "Nora Lindqvist 在 #billing-ops 说：客户 Fjord Analytics 还在 14 天试用期内（第 9 天），\n却已经被扣了 49 美元——是计费任务把试用结束时间算错了。\n你是账单运营。核实客户确实在试用期内，退掉这笔扣款，在 #billing-ops 回帖说明\n退了多少、试用还剩几天、以及这个 bug 需要工程跟进。\n不要取消客户的订阅（他们还要继续试用），不要删除客户，不要新建任何扣款。\n让支持团队能安抚客户。",
+  "prompt": "Nora Lindqvist 在 #billing-ops 说：客户 Fjord Analytics 还在 14 天试用期内（第 9 天），\n却已经被扣了 49 美元——是计费任务把试用结束时间算错了。\n你是账单运营。核实客户确实在试用期内，退掉这笔扣款，在 #billing-ops 回帖说明\n退了多少、试用还剩几天、以及这个 bug 需要工程跟进。\n不要取消客户的订阅（他们还要继续试用），不要删除客户，不要新建任何扣款。\n让支持团队能安抚客户。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -123,6 +123,16 @@
             "path": "stripe.charges.count",
             "op": "eq",
             "value": 1
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

@@ -3,7 +3,7 @@
   "name": "重复扣款退款",
   "domain": "CRM & outreach",
   "generation_mode": "fast",
-  "prompt": "Rosa Delgado 在 #billing-ops 说：Larkspur Foods 这个月被扣了两次 149 美元\n（ch_LARK_A 与 ch_LARK_B，同一张卡同一分钟），客户要求退回多扣的那一笔。\n你是账单运营。核实重复，对其中一笔发起全额退款，在 #billing-ops 回帖告知退了哪一笔。\n不要对两笔都退款，不要新增扣款，不要删除客户档案。\n让客户成功团队知道已经处理。",
+  "prompt": "Rosa Delgado 在 #billing-ops 说：Larkspur Foods 这个月被扣了两次 149 美元\n（ch_LARK_A 与 ch_LARK_B，同一张卡同一分钟），客户要求退回多扣的那一笔。\n你是账单运营。核实重复，对其中一笔发起全额退款，在 #billing-ops 回帖告知退了哪一笔。\n不要对两笔都退款，不要新增扣款，不要删除客户档案。\n让客户成功团队知道已经处理。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -100,6 +100,16 @@
             "path": "stripe.customers.keys",
             "op": "contains",
             "value": "cus_LARK"
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

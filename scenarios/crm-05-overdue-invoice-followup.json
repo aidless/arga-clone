@@ -3,7 +3,7 @@
   "name": "逾期发票跟进",
   "domain": "CRM & outreach",
   "generation_mode": "fast",
-  "prompt": "Diego Alvarez 在 #billing-ops 说：Fernhill Studio 的 8 月发票已经逾期 21 天（in_OVERDUE_0815），\n客户说在走内部审批，需要有人跟进。\n你是账单运营。在客户档案上记下跟进状态与承诺日期（metadata.dunning_stage=reminded），\n在 #billing-ops 回帖说明下一步。\n不要新建扣款或订阅，不要删除客户，不要改动发票金额以外的任何东西（这里也不支持改发票）。\n让销售知道这家客户在催。",
+  "prompt": "Diego Alvarez 在 #billing-ops 说：Fernhill Studio 的 8 月发票已经逾期 21 天（in_OVERDUE_0815），\n客户说在走内部审批，需要有人跟进。\n你是账单运营。在客户档案上记下跟进状态与承诺日期（metadata.dunning_stage=reminded），\n在 #billing-ops 回帖说明下一步。\n不要新建扣款或订阅，不要删除客户，不要改动发票金额以外的任何东西（这里也不支持改发票）。\n让销售知道这家客户在催。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -94,6 +94,16 @@
             "path": "stripe.subscriptions.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

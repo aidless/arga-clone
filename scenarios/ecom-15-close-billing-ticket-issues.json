@@ -3,7 +3,7 @@
   "name": "关闭已处理的账单工单",
   "domain": "E-commerce",
   "generation_mode": "fast",
-  "prompt": "Wen Li 在 #billing-ops 说：acme/support 里账单相关的 issue #31、#32 都已处理完，\n#33 还在等客户提供交易号。你是账单运营。关闭 #31 与 #32，在 #billing-ops 回帖。\n不要关闭 #33，不要删除 issue。",
+  "prompt": "Wen Li 在 #billing-ops 说：acme/support 里账单相关的 issue #31、#32 都已处理完，\n#33 还在等客户提供交易号。你是账单运营。关闭 #31 与 #32，在 #billing-ops 回帖。\n不要关闭 #33，不要删除 issue。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -136,6 +136,16 @@
             "path": "github.issues.acme/support.count",
             "op": "eq",
             "value": 3
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

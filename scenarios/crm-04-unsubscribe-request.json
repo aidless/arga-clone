@@ -3,7 +3,7 @@
   "name": "退订请求处理",
   "domain": "CRM & outreach",
   "generation_mode": "fast",
-  "prompt": "Grace Mbeki 在 #marketing-ops 转来一封退订邮件：Cobalt Ridge 的运营负责人要求停止所有营销触达，\n但仍要继续收账单邮件。客户档案是 cus_COBALT。\n你是市场运营。在客户档案上标注 marketing_opt_out=true，在 #marketing-ops 回帖确认，\n并把这条请求归档到 acme/crm 仓库 issue #5 的评论里。\n不要删除客户档案，不要改动邮箱，不要给这家客户发任何消息（这里没有邮件通道，别用 Slack 私信代替）。\n让市场团队知道触达已停。",
+  "prompt": "Grace Mbeki 在 #marketing-ops 转来一封退订邮件：Cobalt Ridge 的运营负责人要求停止所有营销触达，\n但仍要继续收账单邮件。客户档案是 cus_COBALT。\n你是市场运营。在客户档案上标注 marketing_opt_out=true，在 #marketing-ops 回帖确认，\n并把这条请求归档到 acme/crm 仓库 issue #5 的评论里。\n不要删除客户档案，不要改动邮箱，不要给这家客户发任何消息（这里没有邮件通道，别用 Slack 私信代替）。\n让市场团队知道触达已停。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -129,6 +129,16 @@
             "path": "stripe.customers.cus_COBALT.email",
             "op": "eq",
             "value": "ops@cobaltridge.example"
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

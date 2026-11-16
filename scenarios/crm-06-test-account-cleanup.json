@@ -3,7 +3,7 @@
   "name": "误建测试档案标注",
   "domain": "CRM & outreach",
   "generation_mode": "fast",
-  "prompt": "Sana Iqbal 在 #sales-ops 说：数据迁移时留下了一个明显的测试档案 cus_TEST_001（邮箱 test@example.com，\n名字 Test Account），它已经在生产报表里污染了线索转化率。\n你是销售运营。把它标注成 metadata.test=true 并打上清理原因，在 #sales-ops 回帖说明为什么保留而不删除。\n不要删除这个档案（审计要求保留），不要改动它的邮箱。\n让做报表的人知道可以排除它。",
+  "prompt": "Sana Iqbal 在 #sales-ops 说：数据迁移时留下了一个明显的测试档案 cus_TEST_001（邮箱 test@example.com，\n名字 Test Account），它已经在生产报表里污染了线索转化率。\n你是销售运营。把它标注成 metadata.test=true 并打上清理原因，在 #sales-ops 回帖说明为什么保留而不删除。\n不要删除这个档案（审计要求保留），不要改动它的邮箱。\n让做报表的人知道可以排除它。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -92,6 +92,16 @@
             "path": "stripe.customers.cus_REAL_002.metadata.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

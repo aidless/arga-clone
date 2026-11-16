@@ -3,7 +3,7 @@
   "name": "关闭已修复的端点问题",
   "domain": "IT support",
   "generation_mode": "fast",
-  "prompt": "Dario Conti 在 #it-ops 说：acme/endpoint 里 #41、#42、#43 三个问题对应的补丁都已上线，\n#44 那个还在等厂商确认。你是端点运维。关闭已修复的三个，在 #it-ops 回帖说明。\n不要关闭 #44，不要删除任何 issue。",
+  "prompt": "Dario Conti 在 #it-ops 说：acme/endpoint 里 #41、#42、#43 三个问题对应的补丁都已上线，\n#44 那个还在等厂商确认。你是端点运维。关闭已修复的三个，在 #it-ops 回帖说明。\n不要关闭 #44，不要删除任何 issue。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -157,6 +157,16 @@
             "path": "github.issues.acme/endpoint.count",
             "op": "eq",
             "value": 4
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

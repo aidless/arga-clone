@@ -3,7 +3,7 @@
   "name": "离职人员访问清理",
   "domain": "IT support",
   "generation_mode": "fast",
-  "prompt": "Tomas Beck 在 #it-ops 通报：QA 组的 Dana Whitfield 今天是最后一天，需要把她的访问清理干净。\n你是 IT 运营。在 acme/platform 仓库 issue #12 里逐项记录清理结果（评论里写清每个系统的状态），\n把 issue 标注为 done，并在 #it-ops 回帖确认。\n不要删除仓库，不要改动任何代码，不要给她之外的人调整权限。\n让 IT 团队知道哪些项已经完成。",
+  "prompt": "Tomas Beck 在 #it-ops 通报：QA 组的 Dana Whitfield 今天是最后一天，需要把她的访问清理干净。\n你是 IT 运营。在 acme/platform 仓库 issue #12 里逐项记录清理结果（评论里写清每个系统的状态），\n把 issue 标注为 done，并在 #it-ops 回帖确认。\n不要删除仓库，不要改动任何代码，不要给她之外的人调整权限。\n让 IT 团队知道哪些项已经完成。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -115,6 +115,16 @@
             "path": "github.commits.acme/platform.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

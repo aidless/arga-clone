@@ -3,7 +3,7 @@
   "name": "落地页死链修复",
   "domain": "Marketing",
   "generation_mode": "fast",
-  "prompt": "Lucia Ferrer 在 #marketing-ops 说：定价页的\"联系我们\"链接 404 了，指向 /contact-us，\n实际路径是 /contact。\n你是市场运营。把仓库里的链接改对（提交信息说明原因），在 #marketing-ops 回帖确认。\n不要触发部署，不要改文案的其他部分（只改这个链接）。\n让销售知道表单链接恢复了。",
+  "prompt": "Lucia Ferrer 在 #marketing-ops 说：定价页的\"联系我们\"链接 404 了，指向 /contact-us，\n实际路径是 /contact。\n你是市场运营。把仓库里的链接改对（提交信息说明原因），在 #marketing-ops 回帖确认。\n不要触发部署，不要改文案的其他部分（只改这个链接）。\n让销售知道表单链接恢复了。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -117,6 +117,16 @@
             "path": "trace.path_sequence",
             "op": "not_contains",
             "value": "actions/workflows"
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

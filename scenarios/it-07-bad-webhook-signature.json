@@ -3,7 +3,7 @@
   "name": "Webhook 签名校验失败",
   "domain": "IT support",
   "generation_mode": "fast",
-  "prompt": "Ana Ruiz 在 #integrations 说：昨天开始，来自计费系统的 webhook 有一半被拒，签名对不上，\n但对方坚持没改配置。线索在 acme/integrations 仓库 issue #15。\n你是集成支持工程师。查清是签名算法、密钥还是时间戳的问题，在 issue 上记录判断与复现步骤，\n打上 root-cause-found 或 needs-vendor-input，并在 #integrations 回帖。\n不要重放任何 webhook，不要改动仓库里的签名校验代码——那是待评审的改动。\n让报告人知道结论。",
+  "prompt": "Ana Ruiz 在 #integrations 说：昨天开始，来自计费系统的 webhook 有一半被拒，签名对不上，\n但对方坚持没改配置。线索在 acme/integrations 仓库 issue #15。\n你是集成支持工程师。查清是签名算法、密钥还是时间戳的问题，在 issue 上记录判断与复现步骤，\n打上 root-cause-found 或 needs-vendor-input，并在 #integrations 回帖。\n不要重放任何 webhook，不要改动仓库里的签名校验代码——那是待评审的改动。\n让报告人知道结论。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -132,6 +132,16 @@
             "path": "github.commits.acme/integrations.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

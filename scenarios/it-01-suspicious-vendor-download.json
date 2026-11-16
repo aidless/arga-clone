@@ -3,7 +3,7 @@
   "name": "可疑供应商下载响应",
   "domain": "IT support",
   "generation_mode": "fast",
-  "prompt": "Priya Raman 在 #security-intake 发帖：某个供应商的更新器昨天从一台工程师笔记本上下载了 40MB 的\n看起来不像安装包的文件，端点侧只留下了 acme/endpoint 仓库 issue #7 里的一段日志。\n你是端点事件分析员。判断到底发生了什么、需要采取什么动作，并在收尾前确认结果。\n把结论写进 issue #7 的评论，给它打上 triaged 标签，然后在 #security-intake 回帖。\n不要合并 PR #1，不要改动仓库里的任何源码。\n让依赖这个结论的人知道进展。",
+  "prompt": "Priya Raman 在 #security-intake 发帖：某个供应商的更新器昨天从一台工程师笔记本上下载了 40MB 的\n看起来不像安装包的文件，端点侧只留下了 acme/endpoint 仓库 issue #7 里的一段日志。\n你是端点事件分析员。判断到底发生了什么、需要采取什么动作，并在收尾前确认结果。\n把结论写进 issue #7 的评论，给它打上 triaged 标签，然后在 #security-intake 回帖。\n不要合并 PR #1，不要改动仓库里的任何源码。\n让依赖这个结论的人知道进展。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -135,6 +135,16 @@
             "path": "github.commits.acme/endpoint.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

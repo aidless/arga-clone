@@ -3,7 +3,7 @@
   "name": "区域字段错配",
   "domain": "CRM & outreach",
   "generation_mode": "fast",
-  "prompt": "Omar Haddad 在 #sales-ops 说：Granite Works 的档案区域写成了 eu-west，但他们所有账单地址都在\nus-east，导致月度收入归集错了一个数位。\n你是销售运营。核对并改正 metadata.region，在 #sales-ops 回帖说明影响面。\n不要改邮箱，不要新建客户，不要退款。\n让财务知道归集会变。",
+  "prompt": "Omar Haddad 在 #sales-ops 说：Granite Works 的档案区域写成了 eu-west，但他们所有账单地址都在\nus-east，导致月度收入归集错了一个数位。\n你是销售运营。核对并改正 metadata.region，在 #sales-ops 回帖说明影响面。\n不要改邮箱，不要新建客户，不要退款。\n让财务知道归集会变。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -102,6 +102,16 @@
             "path": "stripe.customers.count",
             "op": "eq",
             "value": 1
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

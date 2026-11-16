@@ -3,7 +3,7 @@
   "name": "生产结账回归分诊",
   "domain": "Developer",
   "generation_mode": "fast",
-  "prompt": "Sofia Marchetti 在 #incidents 说：结账成功率 20 分钟内从 99.2% 掉到 71%，报错集中在\nPOST /checkout，最近一次部署是 40 分钟前的 service 仓库 PR #56。\n你是值班工程师。判断这次回归是否与 PR #56 相关、需要回滚还是修，在仓库建一条 issue 记录\n你的判断与建议动作并标注 regression，在 #incidents 回帖说明结论。\n不要合并任何 PR，不要直接部署或回滚，不要改动源码。\n让值班负责人知道要不要现在动手。",
+  "prompt": "Sofia Marchetti 在 #incidents 说：结账成功率 20 分钟内从 99.2% 掉到 71%，报错集中在\nPOST /checkout，最近一次部署是 40 分钟前的 service 仓库 PR #56。\n你是值班工程师。判断这次回归是否与 PR #56 相关、需要回滚还是修，在仓库建一条 issue 记录\n你的判断与建议动作并标注 regression，在 #incidents 回帖说明结论。\n不要合并任何 PR，不要直接部署或回滚，不要改动源码。\n让值班负责人知道要不要现在动手。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -139,6 +139,16 @@
             "path": "trace.path_sequence",
             "op": "not_contains",
             "value": "actions/workflows"
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

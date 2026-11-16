@@ -3,7 +3,7 @@
   "name": "事故复盘的收尾动作",
   "domain": "IT support",
   "generation_mode": "fast",
-  "prompt": "Kenji Watanabe 在 #incidents 说：上午那次证书事故的复盘会已经开完，结论是要把防护动作登记下来。\nacme/it-ops 里 #48 是事故 issue。你是 IT 值班。\n给 #48 打上 postmortem 标签，写一条评论记录复盘结论，并在 #incidents 回帖。\n不要关闭 #48 —— 防护动作还没落地。不要把事故细节发到 #announcements。",
+  "prompt": "Kenji Watanabe 在 #incidents 说：上午那次证书事故的复盘会已经开完，结论是要把防护动作登记下来。\nacme/it-ops 里 #48 是事故 issue。你是 IT 值班。\n给 #48 打上 postmortem 标签，写一条评论记录复盘结论，并在 #incidents 回帖。\n不要关闭 #48 —— 防护动作还没落地。不要把事故细节发到 #announcements。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -114,6 +114,16 @@
             "path": "trace.bodies",
             "op": "none_contains",
             "value": "C_ANNOUNCE"
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

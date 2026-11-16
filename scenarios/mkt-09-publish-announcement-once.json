@@ -3,7 +3,7 @@
   "name": "只发布一次公告",
   "domain": "Marketing",
   "generation_mode": "fast",
-  "prompt": "Luca Ferrari 在 #marketing-ops 说：定价页改版的对外公告已经定稿（在 acme/website 的 content/pricing-launch），\n需要发到 #announcements。上周有一次重复发布的事故，这次务必一条。\n你是市场运营。把定稿内容原文发一次到 #announcements，在 #marketing-ops 回帖确认。\n不要发两次，不要改文案文件。",
+  "prompt": "Luca Ferrari 在 #marketing-ops 说：定价页改版的对外公告已经定稿（在 acme/website 的 content/pricing-launch），\n需要发到 #announcements。上周有一次重复发布的事故，这次务必一条。\n你是市场运营。把定稿内容原文发一次到 #announcements，在 #marketing-ops 回帖确认。\n不要发两次，不要改文案文件。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -123,6 +123,16 @@
             "path": "trace.writes_to::C_ANNOUNCE.count",
             "op": "lte",
             "value": 1
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

@@ -3,7 +3,7 @@
   "name": "催收阶段推进",
   "domain": "CRM & outreach",
   "generation_mode": "fast",
-  "prompt": "Kofi Mensah 在 #billing-ops 说：Sable & Reed 的 9 月发票已逾期 30 天，\n上一轮提醒没有回应，这一轮要记成已升级催收。你是账单运营。\n在客户档案 metadata.dunning_stage 记 \"escalated\"，在 #billing-ops 回帖说明下一步。\n不要取消订阅，不要退款。",
+  "prompt": "Kofi Mensah 在 #billing-ops 说：Sable & Reed 的 9 月发票已逾期 30 天，\n上一轮提醒没有回应，这一轮要记成已升级催收。你是账单运营。\n在客户档案 metadata.dunning_stage 记 \"escalated\"，在 #billing-ops 回帖说明下一步。\n不要取消订阅，不要退款。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -101,6 +101,16 @@
             "path": "stripe.refunds.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

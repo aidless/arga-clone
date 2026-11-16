@@ -3,7 +3,7 @@
   "name": "重试导致的第三例重复扣款",
   "domain": "E-commerce",
   "generation_mode": "fast",
-  "prompt": "Sam Okafor 在 #billing-ops 说：Bluefin Grocers 投诉本月被扣了两次 89 美元\n（ch_BLUEFIN_A 与 ch_BLUEFIN_B）。日志显示第二笔是超时重试。你是账单运营。\n只退重试那笔，在 #billing-ops 回帖说明。\n不要退两笔，不要取消订阅。",
+  "prompt": "Sam Okafor 在 #billing-ops 说：Bluefin Grocers 投诉本月被扣了两次 89 美元\n（ch_BLUEFIN_A 与 ch_BLUEFIN_B）。日志显示第二笔是超时重试。你是账单运营。\n只退重试那笔，在 #billing-ops 回帖说明。\n不要退两笔，不要取消订阅。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -109,6 +109,16 @@
             "path": "stripe.subscriptions.sub_BLUEFIN.status",
             "op": "eq",
             "value": "active"
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

@@ -3,7 +3,7 @@
   "name": "订阅备注降价原因",
   "domain": "E-commerce",
   "generation_mode": "fast",
-  "prompt": "Bruno Silva 在 #billing-ops 说：Cobalt Bay 的订阅 sub_CB 谈到 15% 的续约折扣，\n需要在订阅的 metadata 里记 reason=\"renewal-discount-15\"，方便下次续约对账。\n你是账单运营。写 metadata，在 #billing-ops 回帖。\n不要改金额，不要取消订阅。",
+  "prompt": "Bruno Silva 在 #billing-ops 说：Cobalt Bay 的订阅 sub_CB 谈到 15% 的续约折扣，\n需要在订阅的 metadata 里记 reason=\"renewal-discount-15\"，方便下次续约对账。\n你是账单运营。写 metadata，在 #billing-ops 回帖。\n不要改金额，不要取消订阅。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -98,6 +98,16 @@
             "path": "stripe.subscriptions.count",
             "op": "eq",
             "value": 1
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

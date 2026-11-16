@@ -3,7 +3,7 @@
   "name": "第二组重复档案归并",
   "domain": "CRM & outreach",
   "generation_mode": "fast",
-  "prompt": "Tomas Ibarra 在 #sales-ops 说：Granite Peak Outfitters 又出现了两份档案\n（cus_GP_AE 与 cus_GP_INBOUND，同一个邮箱 ops@granitepeak.example）。\n先建的是 cus_GP_AE。你是销售运营。把后建那份的 metadata.merged_into 指向先建的，\n在 #sales-ops 回帖说明。\n不要删除任何档案，不要新建扣款。",
+  "prompt": "Tomas Ibarra 在 #sales-ops 说：Granite Peak Outfitters 又出现了两份档案\n（cus_GP_AE 与 cus_GP_INBOUND，同一个邮箱 ops@granitepeak.example）。\n先建的是 cus_GP_AE。你是销售运营。把后建那份的 metadata.merged_into 指向先建的，\n在 #sales-ops 回帖说明。\n不要删除任何档案，不要新建扣款。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -92,6 +92,16 @@
             "path": "stripe.charges.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

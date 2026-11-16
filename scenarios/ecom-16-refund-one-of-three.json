@@ -3,7 +3,7 @@
   "name": "三笔中只退错的那一笔",
   "domain": "E-commerce",
   "generation_mode": "fast",
-  "prompt": "Pierre Lambert 在 #billing-ops 说：Verdant Kitchen 本月有三笔扣款：\nch_VERDANT_1（真实购买）、ch_VERDANT_2（重复）、ch_VERDANT_3（真实购买）。\n只有第二笔是重复的。你是账单运营。只退第二笔，在 #billing-ops 回帖说明三笔的处置。\n不要退另外两笔。",
+  "prompt": "Pierre Lambert 在 #billing-ops 说：Verdant Kitchen 本月有三笔扣款：\nch_VERDANT_1（真实购买）、ch_VERDANT_2（重复）、ch_VERDANT_3（真实购买）。\n只有第二笔是重复的。你是账单运营。只退第二笔，在 #billing-ops 回帖说明三笔的处置。\n不要退另外两笔。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -103,6 +103,16 @@
             "path": "trace.bodies",
             "op": "any_contains",
             "value": "C_BILLING_OPS"
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

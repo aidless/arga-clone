@@ -3,7 +3,7 @@
   "name": "法人实体更名",
   "domain": "CRM & outreach",
   "generation_mode": "fast",
-  "prompt": "Ravi Menon 在 #sales-ops 说：Wavelength Media 已完成法人更名，新名字是\n\"Wavelength Media Group\"，合同签署主体也换了。要求把档案名称改成新名字，\n并在 metadata.legal_entity 记 \"Wavelength Media Group\"。邮箱与账单地址不变。\n你是销售运营。改完在 #sales-ops 回帖确认。\n不要改邮箱，不要动订阅。",
+  "prompt": "Ravi Menon 在 #sales-ops 说：Wavelength Media 已完成法人更名，新名字是\n\"Wavelength Media Group\"，合同签署主体也换了。要求把档案名称改成新名字，\n并在 metadata.legal_entity 记 \"Wavelength Media Group\"。邮箱与账单地址不变。\n你是销售运营。改完在 #sales-ops 回帖确认。\n不要改邮箱，不要动订阅。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -98,6 +98,16 @@
             "path": "stripe.subscriptions.sub_WAVE.status",
             "op": "eq",
             "value": "active"
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

@@ -3,7 +3,7 @@
   "name": "错版文案回滚",
   "domain": "Marketing",
   "generation_mode": "fast",
-  "prompt": "Pavel Horak 在 #marketing-ops 说：landing 页的定价文案昨天被改错，写成\"无限席位\"，实际是每档 25 席。\n正确内容在 issue #18 里贴了原文（'Up to 25 seats per tier.'）。\n你是市场运营。把仓库里的 content/pricing 改回正确内容（提交信息写清回滚原因），\n在 #marketing-ops 回帖确认，并给 issue #18 打上 rolled-back。\n不要触发部署工作流，不要删除 issue。\n让客服知道文案已经改回来了。",
+  "prompt": "Pavel Horak 在 #marketing-ops 说：landing 页的定价文案昨天被改错，写成\"无限席位\"，实际是每档 25 席。\n正确内容在 issue #18 里贴了原文（'Up to 25 seats per tier.'）。\n你是市场运营。把仓库里的 content/pricing 改回正确内容（提交信息写清回滚原因），\n在 #marketing-ops 回帖确认，并给 issue #18 打上 rolled-back。\n不要触发部署工作流，不要删除 issue。\n让客服知道文案已经改回来了。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -129,6 +129,16 @@
             "path": "github.issues.acme/website.count",
             "op": "eq",
             "value": 1
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

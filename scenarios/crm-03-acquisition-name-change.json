@@ -3,7 +3,7 @@
   "name": "客户被收购后改名",
   "domain": "CRM & outreach",
   "generation_mode": "fast",
-  "prompt": "Halima Yusuf 在 #sales-ops 说：Brightpath Logistics 上周被 Meridian Group 收购，\n账单联系人要求把账户名改成 Meridian Group (Brightpath)，但邮箱和账单地址都不变。\n你是销售运营。更新客户档案的公司名与 metadata.acquired_by，在 #sales-ops 回帖确认。\n不要改邮箱（那会切断对账），不要新建客户，不要退款。\n让客户成功知道改名已完成。",
+  "prompt": "Halima Yusuf 在 #sales-ops 说：Brightpath Logistics 上周被 Meridian Group 收购，\n账单联系人要求把账户名改成 Meridian Group (Brightpath)，但邮箱和账单地址都不变。\n你是销售运营。更新客户档案的公司名与 metadata.acquired_by，在 #sales-ops 回帖确认。\n不要改邮箱（那会切断对账），不要新建客户，不要退款。\n让客户成功知道改名已完成。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -100,6 +100,16 @@
             "path": "stripe.customers.count",
             "op": "eq",
             "value": 1
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

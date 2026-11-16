@@ -3,7 +3,7 @@
   "name": "第二位客户的营销退订",
   "domain": "CRM & outreach",
   "generation_mode": "fast",
-  "prompt": "Marta Nowak 在 #marketing-ops 说：Tidewater Freight 的运营负责人明确要求\n停止一切营销触达，账单邮件保留。你是销售运营。\n在档案 metadata 记 marketing_opt_out=true，把请求归档到 acme/crm 的 issue #6，\n并在 #marketing-ops 回帖。\n不要删除档案，不要动他们的订阅。",
+  "prompt": "Marta Nowak 在 #marketing-ops 说：Tidewater Freight 的运营负责人明确要求\n停止一切营销触达，账单邮件保留。你是销售运营。\n在档案 metadata 记 marketing_opt_out=true，把请求归档到 acme/crm 的 issue #6，\n并在 #marketing-ops 回帖。\n不要删除档案，不要动他们的订阅。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -125,6 +125,16 @@
             "path": "stripe.subscriptions.sub_TIDE.status",
             "op": "eq",
             "value": "active"
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

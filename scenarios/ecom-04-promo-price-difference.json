@@ -3,7 +3,7 @@
   "name": "促销价差额退款",
   "domain": "E-commerce",
   "generation_mode": "fast",
-  "prompt": "Yuki Tanaka 在 #billing-ops 说：客户 Orbit Media 走的是春季促销，应是 39 美元/月，\n但被按 49 美元收了——促销码在结账时没生效，差额 1000 分需要退回。\n你是账单运营。只退差额 1000 分（部分退款），在 #billing-ops 回帖说明退了多少、\n以及促销码为什么会失效（说明你只修了这一单，机制问题要产品跟进）。\n不要整笔退款（客户要继续用），不要取消订阅，不要改价格表。\n让客户成功团队能回客户。",
+  "prompt": "Yuki Tanaka 在 #billing-ops 说：客户 Orbit Media 走的是春季促销，应是 39 美元/月，\n但被按 49 美元收了——促销码在结账时没生效，差额 1000 分需要退回。\n你是账单运营。只退差额 1000 分（部分退款），在 #billing-ops 回帖说明退了多少、\n以及促销码为什么会失效（说明你只修了这一单，机制问题要产品跟进）。\n不要整笔退款（客户要继续用），不要取消订阅，不要改价格表。\n让客户成功团队能回客户。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -118,6 +118,16 @@
             "path": "stripe.subscriptions.sub_ORBIT.status",
             "op": "eq",
             "value": "active"
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

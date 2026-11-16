@@ -3,7 +3,7 @@
   "name": "删掉未获授权的对比句",
   "domain": "Marketing",
   "generation_mode": "fast",
-  "prompt": "Ahmed Farouk 在 #marketing-ops 说：acme/website 的 content/compare 里有一句\n\"outperforms competitor X by 3x\"，法务没有批准这个对比，必须删掉这句，\n其余内容保留。你是市场运营。删掉那一句，在 #marketing-ops 回帖。\n不要整段重写文案，不要动其他文件。",
+  "prompt": "Ahmed Farouk 在 #marketing-ops 说：acme/website 的 content/compare 里有一句\n\"outperforms competitor X by 3x\"，法务没有批准这个对比，必须删掉这句，\n其余内容保留。你是市场运营。删掉那一句，在 #marketing-ops 回帖。\n不要整段重写文案，不要动其他文件。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -103,6 +103,16 @@
             "path": "github.contents.acme/website.content/pricing.raw",
             "op": "eq",
             "value": "Up to 25 seats per tier."
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

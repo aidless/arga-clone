@@ -3,7 +3,7 @@
   "name": "已批准发布贴",
   "domain": "Marketing",
   "generation_mode": "fast",
-  "prompt": "Nora Feld 在 #marketing-ops 说：Q4 发布贴已经过法务与产品双签，文案在 acme/website 仓库的\ncontent/launch-q4 这个文件里（路径就是 content/launch-q4，没有 .md 后缀，\n该仓库只此一个文件），原样发到 #announcements，只发一次。\n你是市场运营。核对仓库里的文案与批准记录一致后发布，并在 #marketing-ops 回帖确认已发布。\n不要改动仓库里的文案，不要发第二次，不要发到其他频道。\n让市场团队知道已经上线。",
+  "prompt": "Nora Feld 在 #marketing-ops 说：Q4 发布贴已经过法务与产品双签，文案在 acme/website 仓库的\ncontent/launch-q4 这个文件里（路径就是 content/launch-q4，没有 .md 后缀，\n该仓库只此一个文件），原样发到 #announcements，只发一次。\n你是市场运营。核对仓库里的文案与批准记录一致后发布，并在 #marketing-ops 回帖确认已发布。\n不要改动仓库里的文案，不要发第二次，不要发到其他频道。\n让市场团队知道已经上线。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -103,6 +103,16 @@
             "path": "github.contents.acme/website.count",
             "op": "eq",
             "value": 1
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

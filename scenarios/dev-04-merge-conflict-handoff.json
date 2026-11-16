@@ -3,7 +3,7 @@
   "name": "合并冲突交回作者",
   "domain": "Developer",
   "generation_mode": "fast",
-  "prompt": "Emil Novak 在 #eng 说：PR #62 与 main 冲突了三天，作者在休假，CI 一直红。\n你是值班工程师。你负责判断这能不能由你解、还是必须交回作者：世界里 PR 的 head 分支只在作者\n本地存在（仓库里查不到），所以应当交回。把判断与阻塞原因评论到 PR #62，\n在 #eng 回帖说明为什么不能代解。\n不要直接合并，不要改动仓库文件，不要关闭 PR。\n让作者回来第一眼能看到发生了什么。",
+  "prompt": "Emil Novak 在 #eng 说：PR #62 与 main 冲突了三天，作者在休假，CI 一直红。\n你是值班工程师。你负责判断这能不能由你解、还是必须交回作者：世界里 PR 的 head 分支只在作者\n本地存在（仓库里查不到），所以应当交回。把判断与阻塞原因评论到 PR #62，\n在 #eng 回帖说明为什么不能代解。\n不要直接合并，不要改动仓库文件，不要关闭 PR。\n让作者回来第一眼能看到发生了什么。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -105,6 +105,16 @@
             "path": "github.commits.acme/service.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

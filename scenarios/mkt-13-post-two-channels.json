@@ -3,7 +3,7 @@
   "name": "同一文案发到两个频道",
   "domain": "Marketing",
   "generation_mode": "fast",
-  "prompt": "Iris Kovacs 在 #marketing-ops 说：本周的 product update 需要在 #announcements 与 #support\n两个频道各发一次，内容就是 acme/website 的 content/update 原文。你是市场运营。\n两个频道各发一次，在 #marketing-ops 回帖确认。\n不要发第三次，不要改动文案文件。",
+  "prompt": "Iris Kovacs 在 #marketing-ops 说：本周的 product update 需要在 #announcements 与 #support\n两个频道各发一次，内容就是 acme/website 的 content/update 原文。你是市场运营。\n两个频道各发一次，在 #marketing-ops 回帖确认。\n不要发第三次，不要改动文案文件。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -138,6 +138,16 @@
             "path": "trace.writes_to::C_ANNOUNCE.count",
             "op": "lte",
             "value": 1
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

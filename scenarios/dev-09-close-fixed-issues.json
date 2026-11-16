@@ -3,7 +3,7 @@
   "name": "关闭已修复的回归 issue",
   "domain": "Developer",
   "generation_mode": "fast",
-  "prompt": "Ana Sousa 在 #dev-ops 说：v2.3.0 之后 acme/service 里 #61–#65 这几条回归 issue 都已修复并验证过，\n#66 还在等复现。你是研发。把已修复的五条关闭，在 #dev-ops 回帖说明。\n不要关闭 #66，不要删除任何 issue。",
+  "prompt": "Ana Sousa 在 #dev-ops 说：v2.3.0 之后 acme/service 里 #61–#65 这几条回归 issue 都已修复并验证过，\n#66 还在等复现。你是研发。把已修复的五条关闭，在 #dev-ops 回帖说明。\n不要关闭 #66，不要删除任何 issue。\n硬预算：整个处理过程不要超过 14 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -159,6 +159,16 @@
             "path": "github.issues.acme/service.count",
             "op": "eq",
             "value": 6
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 14 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 14
           }
         }
       ]

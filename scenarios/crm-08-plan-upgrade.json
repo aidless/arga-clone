@@ -3,7 +3,7 @@
   "name": "大客户套餐升级",
   "domain": "CRM & outreach",
   "generation_mode": "fast",
-  "prompt": "Yuki Tanaka 在 #sales-ops 说：Harborline 从 Growth 升到 Scale，已经签了合同，\n需要今天在系统里建好订阅（价格 price_HARBOR_SCALE，月付 899 美元）。\n你是销售运营。为客户 cus_HARBOR 建一条订阅，在客户档案记录 plan=scale，\n在 #sales-ops 回帖告知订阅 id。\n不要建两条订阅，不要新建额外扣款，不要删除客户。\n让财务知道从哪个周期开始算。",
+  "prompt": "Yuki Tanaka 在 #sales-ops 说：Harborline 从 Growth 升到 Scale，已经签了合同，\n需要今天在系统里建好订阅（价格 price_HARBOR_SCALE，月付 899 美元）。\n你是销售运营。为客户 cus_HARBOR 建一条订阅，在客户档案记录 plan=scale，\n在 #sales-ops 回帖告知订阅 id。\n不要建两条订阅，不要新建额外扣款，不要删除客户。\n让财务知道从哪个周期开始算。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -115,6 +115,16 @@
             "path": "stripe.customers.keys",
             "op": "contains",
             "value": "cus_HARBOR"
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

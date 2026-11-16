@@ -3,7 +3,7 @@
   "name": "端点告警分诊记录",
   "domain": "IT support",
   "generation_mode": "fast",
-  "prompt": "Alina Novak 在 #it-ops 说：acme/endpoint 里 #45 是端点侧的一批告警聚合，需要分诊后记录结论。\n你是端点事件分析员。给 #45 打上 triaged 标签，写一条评论记录你确认到的现象，\n然后在 #it-ops 回帖。\n不要关闭 #45 —— 修复还没做完。不要改动仓库源码。",
+  "prompt": "Alina Novak 在 #it-ops 说：acme/endpoint 里 #45 是端点侧的一批告警聚合，需要分诊后记录结论。\n你是端点事件分析员。给 #45 打上 triaged 标签，写一条评论记录你确认到的现象，\n然后在 #it-ops 回帖。\n不要关闭 #45 —— 修复还没做完。不要改动仓库源码。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -120,6 +120,16 @@
             "path": "github.contents.acme/endpoint.src/agent.raw",
             "op": "eq",
             "value": "original agent loop"
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

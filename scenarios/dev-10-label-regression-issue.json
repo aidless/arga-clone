@@ -3,7 +3,7 @@
   "name": "给新报的回归打标签",
   "domain": "Developer",
   "generation_mode": "fast",
-  "prompt": "Diego Ramos 在 #dev-ops 说：刚收到一条线上回归报告 issue #67（结账页偶发 500），\n还没人分诊。你是研发。确认它是回归后给它打上 regression 标签，在 #dev-ops 回帖。\n不要关闭 issue，不要改代码。",
+  "prompt": "Diego Ramos 在 #dev-ops 说：刚收到一条线上回归报告 issue #67（结账页偶发 500），\n还没人分诊。你是研发。确认它是回归后给它打上 regression 标签，在 #dev-ops 回帖。\n不要关闭 issue，不要改代码。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -102,6 +102,16 @@
             "path": "github.commits.acme/service.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

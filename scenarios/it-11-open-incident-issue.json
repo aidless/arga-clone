@@ -3,7 +3,7 @@
   "name": "为第二次事故建 issue",
   "domain": "IT support",
   "generation_mode": "fast",
-  "prompt": "Rafael Costa 在 #incidents 说：周二那次证书过期已经建了 acme/it-ops#47 的 issue。\n今天上午的第二次同类事故还没有记录，需要单独建一条，标题写清是证书链过期，\n并打上 incident 标签。你是 IT 值班。建完在 #incidents 回帖给出编号。\n不要改动 #47，不要关闭任何 issue。",
+  "prompt": "Rafael Costa 在 #incidents 说：周二那次证书过期已经建了 acme/it-ops#47 的 issue。\n今天上午的第二次同类事故还没有记录，需要单独建一条，标题写清是证书链过期，\n并打上 incident 标签。你是 IT 值班。建完在 #incidents 回帖给出编号。\n不要改动 #47，不要关闭任何 issue。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -115,6 +115,16 @@
             "path": "trace.bodies",
             "op": "none_contains",
             "value": "C_ANNOUNCE"
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

@@ -3,7 +3,7 @@
   "name": "记录一次成功部署",
   "domain": "Developer",
   "generation_mode": "fast",
-  "prompt": "Frida Larsen 在 #dev-ops 说：v2.5.1 已通过 CI 并部署到 production，需要在部署记录上\n补一条 success 状态。你是研发。给这个部署补状态，在 #dev-ops 回帖。\n不要触发新的部署。",
+  "prompt": "Frida Larsen 在 #dev-ops 说：v2.5.1 已通过 CI 并部署到 production，需要在部署记录上\n补一条 success 状态。你是研发。给这个部署补状态，在 #dev-ops 回帖。\n不要触发新的部署。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -95,6 +95,16 @@
             "path": "github.releases.acme/service.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

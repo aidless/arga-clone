@@ -3,7 +3,7 @@
   "name": "调整端点代理超时",
   "domain": "IT support",
   "generation_mode": "fast",
-  "prompt": "Petra Holm 在 #it-ops 说：acme/endpoint 的 src/agent 里超时写的是 30000 毫秒，\n但网关侧的实际上限是 3000 毫秒，导致代理每次都在等一个不会回来的响应。\n你是端点运维。把文件里的 30000 改成 3000，在 #it-ops 回帖。\n不要改文件的其他内容，不要动分支。",
+  "prompt": "Petra Holm 在 #it-ops 说：acme/endpoint 的 src/agent 里超时写的是 30000 毫秒，\n但网关侧的实际上限是 3000 毫秒，导致代理每次都在等一个不会回来的响应。\n你是端点运维。把文件里的 30000 改成 3000，在 #it-ops 回帖。\n不要改文件的其他内容，不要动分支。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -108,6 +108,16 @@
             "path": "github.branches.acme/endpoint.main",
             "op": "eq",
             "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

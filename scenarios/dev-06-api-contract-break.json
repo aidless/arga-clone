@@ -3,7 +3,7 @@
   "name": "破坏性接口变更评审",
   "domain": "Developer",
   "generation_mode": "fast",
-  "prompt": "Leila Haddad 在 #api-review 说：PR #66 把 /v1/orders 的 amount 字段从整数分改成浮点美元，\n已经有三个客户在群里问是不是他们算错了。\n你是 API 评审员。判断这是不是破坏性变更，在 PR #66 评论里写清影响面与建议（版本化或加字段），\n在 #api-review 回帖。\n不要合并 PR，不要改代码，不要关闭 PR。\n让提 PR 的人知道必须先改方案。",
+  "prompt": "Leila Haddad 在 #api-review 说：PR #66 把 /v1/orders 的 amount 字段从整数分改成浮点美元，\n已经有三个客户在群里问是不是他们算错了。\n你是 API 评审员。判断这是不是破坏性变更，在 PR #66 评论里写清影响面与建议（版本化或加字段），\n在 #api-review 回帖。\n不要合并 PR，不要改代码，不要关闭 PR。\n让提 PR 的人知道必须先改方案。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -111,6 +111,16 @@
             "path": "github.commits.acme/service.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

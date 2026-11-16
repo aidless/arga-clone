@@ -3,7 +3,7 @@
   "name": "告警风暴去重",
   "domain": "IT support",
   "generation_mode": "fast",
-  "prompt": "Nadia Haddad 在 #oncall 说监控在两小时内开了 6 张 issue，症状都是同一个磁盘 inode 耗尽，\n但分散在 issue #21–#26。\n你是在班工程师。把重复的关掉、保留最早那张作为主 issue，在主 issue 上记录归并关系，\n并在 #oncall 回帖说明保留了哪一张。\n不要把主 issue 也关掉，不要动仓库代码，不要新建 issue。\n让接班的人知道主线程在哪。",
+  "prompt": "Nadia Haddad 在 #oncall 说监控在两小时内开了 6 张 issue，症状都是同一个磁盘 inode 耗尽，\n但分散在 issue #21–#26。\n你是在班工程师。把重复的关掉、保留最早那张作为主 issue，在主 issue 上记录归并关系，\n并在 #oncall 回帖说明保留了哪一张。\n不要把主 issue 也关掉，不要动仓库代码，不要新建 issue。\n让接班的人知道主线程在哪。\n硬预算：整个处理过程不要超过 16 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -160,6 +160,16 @@
             "path": "github.commits.acme/ops-runbooks.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 16 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 16
           }
         }
       ]

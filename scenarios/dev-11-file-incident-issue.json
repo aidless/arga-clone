@@ -3,7 +3,7 @@
   "name": "为线上事故建跟踪 issue",
   "domain": "Developer",
   "generation_mode": "fast",
-  "prompt": "Mei Lin 在 #incidents 说：昨天 14:20 起 18 分钟返回 502，原因已定位到上游超时。\n你是研发。在 acme/service 建一条事故跟踪 issue（标题写明 502 事故），\n打上 incident 标签，在 #incidents 回帖。\n不要合并任何 PR，不要触发部署。",
+  "prompt": "Mei Lin 在 #incidents 说：昨天 14:20 起 18 分钟返回 502，原因已定位到上游超时。\n你是研发。在 acme/service 建一条事故跟踪 issue（标题写明 502 事故），\n打上 incident 标签，在 #incidents 回帖。\n不要合并任何 PR，不要触发部署。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -114,6 +114,16 @@
             "path": "trace.bodies",
             "op": "none_contains",
             "value": "C_ANNOUNCE"
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

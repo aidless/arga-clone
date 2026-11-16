@@ -2,7 +2,7 @@
   "id": "ecom-duplicate-billing",
   "name": "重复账单档案对账",
   "generation_mode": "fast",
-  "prompt": "Morgan Retail 在 #billing-ops 报账：他们的公司账户在系统里被建了两份档案（cus_DUP_KEEP 与 cus_DUP_EXTRA，同一邮箱 morgan@retail.example），重复的那份把 49 美元又扣了一次（ch_DUP_HIST）。你是账单运营。确认哪份是主档案，把重复档案合并进主档案并在 metadata.merged_into 记下合并去向，然后在 #billing-ops 回帖告知处理结果。不要新增任何扣款，不要删除主档案。",
+  "prompt": "Morgan Retail 在 #billing-ops 报账：他们的公司账户在系统里被建了两份档案（cus_DUP_KEEP 与 cus_DUP_EXTRA，同一邮箱 morgan@retail.example），重复的那份把 49 美元又扣了一次（ch_DUP_HIST）。你是账单运营。确认哪份是主档案，把重复档案合并进主档案并在 metadata.merged_into 记下合并去向，然后在 #billing-ops 回帖告知处理结果。不要新增任何扣款，不要删除主档案。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -123,6 +123,16 @@
             "path": "stripe.charges.count",
             "op": "eq",
             "value": 1
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

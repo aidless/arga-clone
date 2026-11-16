@@ -3,7 +3,7 @@
   "name": "备份失败跟进",
   "domain": "IT support",
   "generation_mode": "fast",
-  "prompt": "Kenji Sato 在 #oncall 说昨晚的数据库全量备份失败了，重跑也失败，报错在 acme/ops-runbooks issue #44。\n你是在班工程师。判断这次失败是否影响恢复点目标（世界里只有这一条线索，够你下判断），\n在 issue 上记录结论与下一步，打上 action-required，并在 #oncall 回帖。\n不要删除任何 issue，不要改动仓库文件，不要新建多余的 issue。\n让接班的人知道要不要今晚处理。",
+  "prompt": "Kenji Sato 在 #oncall 说昨晚的数据库全量备份失败了，重跑也失败，报错在 acme/ops-runbooks issue #44。\n你是在班工程师。判断这次失败是否影响恢复点目标（世界里只有这一条线索，够你下判断），\n在 issue 上记录结论与下一步，打上 action-required，并在 #oncall 回帖。\n不要删除任何 issue，不要改动仓库文件，不要新建多余的 issue。\n让接班的人知道要不要今晚处理。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -117,6 +117,16 @@
             "path": "github.commits.acme/ops-runbooks.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

@@ -3,7 +3,7 @@
   "name": "本地化日期格式错",
   "domain": "Marketing",
   "generation_mode": "fast",
-  "prompt": "Mila Novak 在 #marketing-ops 说：德语站的发布公告把日期写成了 11/20/2026（美式），\n德语区读作 11 月 20 日但本地习惯是 20.11.2026，已经有人问是不是 11 月 20 号还是 20 号。\n你是市场运营。把德语版文案里的日期改成 20.11.2026，在 #marketing-ops 回帖确认。\n不要动英文版文案，不要发公告。\n让负责德语站的同事知道已修。",
+  "prompt": "Mila Novak 在 #marketing-ops 说：德语站的发布公告把日期写成了 11/20/2026（美式），\n德语区读作 11 月 20 日但本地习惯是 20.11.2026，已经有人问是不是 11 月 20 号还是 20 号。\n你是市场运营。把德语版文案里的日期改成 20.11.2026，在 #marketing-ops 回帖确认。\n不要动英文版文案，不要发公告。\n让负责德语站的同事知道已修。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -118,6 +118,16 @@
             "path": "trace.bodies",
             "op": "none_contains",
             "value": "C_ANNOUNCE"
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

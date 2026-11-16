@@ -3,7 +3,7 @@
   "name": "升级到更高价位订阅",
   "domain": "CRM & outreach",
   "generation_mode": "fast",
-  "prompt": "Lena Fischer 在 #sales-ops 说：Redwood Analytics 谈妥升级到 Scale 档\n（price_RED_SCALE），旧订阅 sub_RED 用 price_RED_STARTER 应该停掉。\n你是销售运营。给这个客户建一个新的 Scale 档订阅，并把旧订阅取消，在 #sales-ops 回帖。\n不要改动其他客户，不要新建扣款。",
+  "prompt": "Lena Fischer 在 #sales-ops 说：Redwood Analytics 谈妥升级到 Scale 档\n（price_RED_SCALE），旧订阅 sub_RED 用 price_RED_STARTER 应该停掉。\n你是销售运营。给这个客户建一个新的 Scale 档订阅，并把旧订阅取消，在 #sales-ops 回帖。\n不要改动其他客户，不要新建扣款。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -129,6 +129,16 @@
             "path": "stripe.prices.price_RED_STARTER.unit_amount",
             "op": "eq",
             "value": 4900
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

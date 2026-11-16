@@ -3,7 +3,7 @@
   "name": "第二笔重复扣款退款",
   "domain": "CRM & outreach",
   "generation_mode": "fast",
-  "prompt": "Ines Duarte 在 #billing-ops 说：Halcyon Labs 本月被扣了两次 249 美元\n（ch_HALCYON_A 与 ch_HALCYON_B，同一张卡同一分钟）。第二笔是网关重试。\n你是账单运营。只退重试那一笔，在 #billing-ops 回帖说明退了哪一笔。\n不要退两笔，不要新建扣款。",
+  "prompt": "Ines Duarte 在 #billing-ops 说：Halcyon Labs 本月被扣了两次 249 美元\n（ch_HALCYON_A 与 ch_HALCYON_B，同一张卡同一分钟）。第二笔是网关重试。\n你是账单运营。只退重试那一笔，在 #billing-ops 回帖说明退了哪一笔。\n不要退两笔，不要新建扣款。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -98,6 +98,16 @@
             "path": "stripe.charges.count",
             "op": "eq",
             "value": 2
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

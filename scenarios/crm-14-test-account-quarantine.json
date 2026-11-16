@@ -3,7 +3,7 @@
   "name": "测试账号隔离标注",
   "domain": "CRM & outreach",
   "generation_mode": "fast",
-  "prompt": "Yuki Tanaka 在 #sales-ops 说：QA 团队用 cus_QA_SMOKE 这个档案跑了端到端测试，\n它现在混在真实线索里，把转化率算歪了。你是销售运营。\n在档案 metadata 记 test=true 与 test_reason，说明它是测试档案，在 #sales-ops 回帖。\n不要删除档案 —— 它还被测试用例引用。",
+  "prompt": "Yuki Tanaka 在 #sales-ops 说：QA 团队用 cus_QA_SMOKE 这个档案跑了端到端测试，\n它现在混在真实线索里，把转化率算歪了。你是销售运营。\n在档案 metadata 记 test=true 与 test_reason，说明它是测试档案，在 #sales-ops 回帖。\n不要删除档案 —— 它还被测试用例引用。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -92,6 +92,16 @@
             "path": "stripe.customers.cus_REAL_1.metadata.test",
             "op": "eq",
             "value": null
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

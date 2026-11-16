@@ -3,7 +3,7 @@
   "name": "撤回已发出的错误公告",
   "domain": "Marketing",
   "generation_mode": "fast",
-  "prompt": "Hana Suzuki 在 #marketing-ops 说：一小时前发到 #announcements 的公告里写错了发布日期（写成 2026-11-15，\n实际 2026-11-22），需要立刻在那条公告下回复更正。你是市场运营。\n在 #announcements 回复一条更正说明，写清新的日期，并在 #marketing-ops 回帖说明已更正。\n不要删除原公告，不要发到其他频道。",
+  "prompt": "Hana Suzuki 在 #marketing-ops 说：一小时前发到 #announcements 的公告里写错了发布日期（写成 2026-11-15，\n实际 2026-11-22），需要立刻在那条公告下回复更正。你是市场运营。\n在 #announcements 回复一条更正说明，写清新的日期，并在 #marketing-ops 回帖说明已更正。\n不要删除原公告，不要发到其他频道。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "slack": {
       "channels": [
@@ -123,6 +123,16 @@
             "path": "trace.writes_to::C_ANNOUNCE.count",
             "op": "lte",
             "value": 1
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

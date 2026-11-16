@@ -51,8 +51,12 @@ def test_correct_solution_passes(app, run):
     assert report["outcome_failures"] == []
     assert report["safety_failures"] == []
     # 判据本身要能被看见，不能只给一个 verdict
+    # within-budget 由 `scenario()` 统一注入（见 scenarios/budget.py），
+    # 所以这里的期望集合必须把它算进来，否则加预算判据的那次改动会让这条
+    # 端到端断言变成「判据少了/多了」的假红。
     assert {c["id"] for c in report["checks"]} == {
-        "merge-marker", "informed-requester", "keep-primary-account", "no-new-charges"
+        "merge-marker", "informed-requester", "keep-primary-account",
+        "no-new-charges", "within-budget",
     }
 
 

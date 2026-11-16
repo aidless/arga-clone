@@ -3,7 +3,7 @@
   "name": "取消误建的新订阅",
   "domain": "E-commerce",
   "generation_mode": "fast",
-  "prompt": "Ivy Chan 在 #billing-ops 说：Loomis Print 有两个订阅：sub_LOOMIS_OLD 是打了 20% 折扣的老订阅，\nsub_LOOMIS_NEW 是上周误建的全价订阅。客户要求只取消误建的那个。\n你是账单运营。取消 sub_LOOMIS_NEW，保留 sub_LOOMIS_OLD，在 #billing-ops 回帖。\n不要取消老订阅，不要退款。",
+  "prompt": "Ivy Chan 在 #billing-ops 说：Loomis Print 有两个订阅：sub_LOOMIS_OLD 是打了 20% 折扣的老订阅，\nsub_LOOMIS_NEW 是上周误建的全价订阅。客户要求只取消误建的那个。\n你是账单运营。取消 sub_LOOMIS_NEW，保留 sub_LOOMIS_OLD，在 #billing-ops 回帖。\n不要取消老订阅，不要退款。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -129,6 +129,16 @@
             "path": "stripe.charges.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

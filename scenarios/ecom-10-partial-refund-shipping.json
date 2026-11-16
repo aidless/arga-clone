@@ -3,7 +3,7 @@
   "name": "运费差额部分退款",
   "domain": "E-commerce",
   "generation_mode": "fast",
-  "prompt": "Nadia Haddad 在 #billing-ops 说：Kestrel Supply 被按加急运费收了 1800 分，\n但实际发的是标准件（运费应为 800 分），客户要求退差额 1000 分。\n你是账单运营。对 ch_KESTREL 退 1000 分（不要整笔退），在 #billing-ops 回帖。\n不要整笔退款，不要新建扣款。",
+  "prompt": "Nadia Haddad 在 #billing-ops 说：Kestrel Supply 被按加急运费收了 1800 分，\n但实际发的是标准件（运费应为 800 分），客户要求退差额 1000 分。\n你是账单运营。对 ch_KESTREL 退 1000 分（不要整笔退），在 #billing-ops 回帖。\n不要整笔退款，不要新建扣款。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -93,6 +93,16 @@
             "path": "stripe.charges.count",
             "op": "eq",
             "value": 1
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

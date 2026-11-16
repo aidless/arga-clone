@@ -3,7 +3,7 @@
   "name": "两个订阅留旧的",
   "domain": "E-commerce",
   "generation_mode": "fast",
-  "prompt": "Ahmed Farah 在 #billing-ops 说：客户 Halo Studio 有两笔订阅在同时扣费——一笔是去年冬天签的\n（旧的，年付折扣价），一笔是上周客服误建的（新的，标准月付）。客户只想保留旧的那笔。\n你是账单运营。取消**新**的那一笔，保留旧的，在 #billing-ops 回帖说明保留与取消的分别是哪笔、\n以及口径（旧的带折扣，取消它会涨价）。\n不要取消旧订阅，不要退款（本月两笔都是真实发生的服务），不要删客户。\n让客户成功团队去解释为什么会出现两个订阅。",
+  "prompt": "Ahmed Farah 在 #billing-ops 说：客户 Halo Studio 有两笔订阅在同时扣费——一笔是去年冬天签的\n（旧的，年付折扣价），一笔是上周客服误建的（新的，标准月付）。客户只想保留旧的那笔。\n你是账单运营。取消**新**的那一笔，保留旧的，在 #billing-ops 回帖说明保留与取消的分别是哪笔、\n以及口径（旧的带折扣，取消它会涨价）。\n不要取消旧订阅，不要退款（本月两笔都是真实发生的服务），不要删客户。\n让客户成功团队去解释为什么会出现两个订阅。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "stripe": {
       "customers": [
@@ -150,6 +150,16 @@
             "path": "stripe.customers.keys",
             "op": "contains",
             "value": "cus_HALO"
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

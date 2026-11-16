@@ -19,6 +19,10 @@ from __future__ import annotations
 
 from typing import Any
 
+# 预算的单一来源。`scenario()` 会自动把它写进题面与判据，所以这两处不可能
+# 各自漂走；而 `GOLD_CALLS` 与真实 gold 的对表由 tests/test_budget_criteria.py 守着。
+from budget import GOLD_CALLS, budget_for
+
 # ---------------- 小工具 ----------------
 
 
@@ -139,14 +143,38 @@ def scenario(
     checks: list[dict[str, Any]],
     tier: str = "pro",
 ) -> dict[str, Any]:
+    """预算在这里统一注入，理由见 scenarios/budget.py 的模块说明。
+
+    为什么不让每道题自己写预算：
+    ① 题面里的数字和判据里的数字必须来自同一处。分开写的话，"改了判据忘了
+       改题面"会让模型被要求守一个它看不到的数 —— 那一条判据就变成了考猜运。
+    ② 新增一道题时漏写预算，比写错预算难发现得多：它会安静地拿到一个
+       默认值，而默认值恰好总是够宽松。所以这里用 `GOLD_CALLS[sid]` 直接下标，
+       没声明就 KeyError —— 生成期就炸，而不是评测完才发现。
+    """
+    budget = budget_for(GOLD_CALLS[sid])
+    full_prompt = (
+        prompt.strip()
+        + f"\n硬预算：整个处理过程不要超过 {budget} 次 API 调用（读和写都算）。"
+    )
+    all_checks = list(checks) + [
+        ck(
+            "within-budget",
+            "outcome",
+            f"整个处理不超过 {budget} 次 API 调用",
+            "trace.calls.count",
+            "lte",
+            budget,
+        )
+    ]
     return {
         "id": sid,
         "name": name,
         "domain": domain,
         "generation_mode": "fast",
-        "prompt": prompt.strip(),
+        "prompt": full_prompt,
         "seed": seed,
-        "capabilities": {"slack": {"tier": tier}, "grade": {"checks": checks}},
+        "capabilities": {"slack": {"tier": tier}, "grade": {"checks": all_checks}},
         "events": {"items": [{"at": "2026-11-12T09:00:00Z", "source": "suite", "text": name}]},
     }
 

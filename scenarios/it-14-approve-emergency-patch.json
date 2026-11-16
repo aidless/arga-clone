@@ -3,7 +3,7 @@
   "name": "审批紧急补丁 PR",
   "domain": "IT support",
   "generation_mode": "fast",
-  "prompt": "Tessa Wright 在 #it-ops 说：acme/endpoint 的 PR #9 是昨夜的紧急补丁，已经过两台机器验证，\n需要代码负责人批准，但今晚之前不能合并（还要走发布窗口）。你是值班负责人。\n提交批准，在 #it-ops 回帖说明合并留给发布窗口。\n不要合并 PR #9。",
+  "prompt": "Tessa Wright 在 #it-ops 说：acme/endpoint 的 PR #9 是昨夜的紧急补丁，已经过两台机器验证，\n需要代码负责人批准，但今晚之前不能合并（还要走发布窗口）。你是值班负责人。\n提交批准，在 #it-ops 回帖说明合并留给发布窗口。\n不要合并 PR #9。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -101,6 +101,16 @@
             "path": "github.contents.acme/endpoint.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

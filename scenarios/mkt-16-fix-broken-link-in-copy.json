@@ -3,7 +3,7 @@
   "name": "修正文案里的失效链接",
   "domain": "Marketing",
   "generation_mode": "fast",
-  "prompt": "Jonas Weber 在 #marketing-ops 说：acme/website 的 content/newsletter 里注册链接指向\n/old-signup（已下线），应改成 /signup，其余内容不变。你是市场运营。\n改链接，在 #marketing-ops 回帖。\n不要改其他文案，不要动其他文件。",
+  "prompt": "Jonas Weber 在 #marketing-ops 说：acme/website 的 content/newsletter 里注册链接指向\n/old-signup（已下线），应改成 /signup，其余内容不变。你是市场运营。\n改链接，在 #marketing-ops 回帖。\n不要改其他文案，不要动其他文件。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -103,6 +103,16 @@
             "path": "github.contents.acme/website.content/pricing.raw",
             "op": "eq",
             "value": "Up to 25 seats per tier."
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

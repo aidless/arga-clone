@@ -3,7 +3,7 @@
   "name": "证书到期跟踪",
   "domain": "IT support",
   "generation_mode": "fast",
-  "prompt": "Owen Park 在 #platform-oncall 提醒：api.acme.example 的 TLS 证书 9 天后到期，续期工单还没人认领。\n你是平台工程师。在 acme/platform 仓库建一条 issue 记录到期日与影响面，标注 owner-platform，\n并在 #platform-oncall 回帖说明你建了哪个 issue。\n不要触发任何部署工作流，不要改动仓库里已有的文件。\n让值班的人知道跟踪在哪。",
+  "prompt": "Owen Park 在 #platform-oncall 提醒：api.acme.example 的 TLS 证书 9 天后到期，续期工单还没人认领。\n你是平台工程师。在 acme/platform 仓库建一条 issue 记录到期日与影响面，标注 owner-platform，\n并在 #platform-oncall 回帖说明你建了哪个 issue。\n不要触发任何部署工作流，不要改动仓库里已有的文件。\n让值班的人知道跟踪在哪。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -118,6 +118,16 @@
             "path": "github.commits.acme/platform.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

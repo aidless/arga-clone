@@ -3,7 +3,7 @@
   "name": "收尾陈旧的 IT 工单",
   "domain": "IT support",
   "generation_mode": "fast",
-  "prompt": "Noor Haddad 在 #it-ops 说：acme/it-ops 里 #52 与 #53 是两个月前的工单，用户可以确认已不再复现；\n#54 还在等厂商回复。你是 IT 值班。关闭 #52 与 #53，在 #it-ops 回帖。\n不要关闭 #54，不要删除任何 issue。",
+  "prompt": "Noor Haddad 在 #it-ops 说：acme/it-ops 里 #52 与 #53 是两个月前的工单，用户可以确认已不再复现；\n#54 还在等厂商回复。你是 IT 值班。关闭 #52 与 #53，在 #it-ops 回帖。\n不要关闭 #54，不要删除任何 issue。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -126,6 +126,16 @@
             "path": "github.issues.acme/it-ops.count",
             "op": "eq",
             "value": 3
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

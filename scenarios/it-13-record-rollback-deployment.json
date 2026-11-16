@@ -3,7 +3,7 @@
   "name": "记录一次回滚部署",
   "domain": "IT support",
   "generation_mode": "fast",
-  "prompt": "Milos Petrov 在 #it-ops 说：昨晚把 endpoint agent 回滚到 v2.8.1 之后事故停止，\n需要在 acme/endpoint 仓库记录这次部署，ref 用 v2.8.1，环境是 production。\n你是端点运维。建这条部署记录，在 #it-ops 回帖。\n不要建 release，不要改代码。",
+  "prompt": "Milos Petrov 在 #it-ops 说：昨晚把 endpoint agent 回滚到 v2.8.1 之后事故停止，\n需要在 acme/endpoint 仓库记录这次部署，ref 用 v2.8.1，环境是 production。\n你是端点运维。建这条部署记录，在 #it-ops 回帖。\n不要建 release，不要改代码。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -93,6 +93,16 @@
             "path": "github.contents.acme/endpoint.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]

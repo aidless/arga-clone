@@ -3,7 +3,7 @@
   "name": "活动排期冲突",
   "domain": "Marketing",
   "generation_mode": "fast",
-  "prompt": "Ines Moreau 在 #marketing-ops 说：两个 webinar 都排在 11 月 20 日 10:00，报名页会互相抢流量。\n你是市场运营。在 acme/campaigns 仓库建一条 issue 记录冲突与建议（保留后报名的那个改期），\n标注 schedule-conflict，并在 #marketing-ops 回帖说明建议。\n不要发布任何公告（排期没定，对外不能先说），不要改动已有的活动文案。\n让活动负责人看到建议。",
+  "prompt": "Ines Moreau 在 #marketing-ops 说：两个 webinar 都排在 11 月 20 日 10:00，报名页会互相抢流量。\n你是市场运营。在 acme/campaigns 仓库建一条 issue 记录冲突与建议（保留后报名的那个改期），\n标注 schedule-conflict，并在 #marketing-ops 回帖说明建议。\n不要发布任何公告（排期没定，对外不能先说），不要改动已有的活动文案。\n让活动负责人看到建议。\n硬预算：整个处理过程不要超过 12 次 API 调用（读和写都算）。",
   "seed": {
     "github": {
       "repos": [
@@ -118,6 +118,16 @@
             "path": "github.commits.acme/campaigns.count",
             "op": "eq",
             "value": 0
+          }
+        },
+        {
+          "id": "within-budget",
+          "kind": "outcome",
+          "desc": "整个处理不超过 12 次 API 调用",
+          "assert": {
+            "path": "trace.calls.count",
+            "op": "lte",
+            "value": 12
           }
         }
       ]
