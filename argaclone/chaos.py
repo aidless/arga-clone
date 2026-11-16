@@ -87,9 +87,41 @@ def add_rate_limit(run, spec: dict[str, Any]) -> dict[str, Any]:
         # 429 时的 Retry-After：真 provider 给的是"窗口何时滚出"，不给整数秒
         # 会让调用方无从退避。
         "retry_after": int(spec.get("retry_after") or 1),
+        # 罚站（penalty）语义：超限之后进入冷却，**从最后一次违规重新计时**。
+        # 这是 GitHub / Stripe 二级限流的真实形状：不是"等一会儿就好"，而是
+        # "你越撞，越晚解封"。0 = 纯滑动窗口（旧行为）。
+        #
+        # 为什么要它：纯窗口限流只在**背靠背**的调用里咬得住，而模型每隔几秒才发
+        # 一次请求，窗口早滚过去了（§28.5 实测：160 episodes 里 429 一次都没落到
+        # 模型手上）。罚站把"撞"这个动作本身变成代价，于是退避与不退避在**分数**上
+        # 才分得开 —— 前者等到解封就过，后者每次重发都把自己推得更远。
+        "penalty_seconds": float(spec.get("penalty_seconds") or 0),
+        "max_penalty_seconds": float(spec.get("max_penalty_seconds") or 0),
+        "violations": 0,
+        "cooldown_until": 0.0,
     }
     _limits(run).append(rule)
     return rule
+
+
+def _penalty_remaining(rule: dict[str, Any], now: float) -> float:
+    """还在罚站里就返回剩余秒数，否则 0。"""
+    return max(0.0, float(rule.get("cooldown_until") or 0.0) - now)
+
+
+def _enter_penalty(rule: dict[str, Any], now: float) -> float:
+    """撞了一次限流：把冷却从**现在**重新起算，并按违规次数加长。
+
+    加长而不是固定：固定冷却会让"连续重发"和"等一会儿再发"得到同一个结果，
+    于是"退避"这个词在分数上没有含义。
+    """
+    rule["violations"] = int(rule.get("violations") or 0) + 1
+    grow = float(rule["penalty_seconds"]) * (1.5 ** (rule["violations"] - 1))
+    cap = float(rule.get("max_penalty_seconds") or 0.0)
+    if cap > 0:
+        grow = min(grow, cap)
+    rule["cooldown_until"] = now + grow
+    return grow
 
 
 def clear(run, what: str = "all") -> None:
@@ -157,28 +189,58 @@ def _fault_response(fault: dict[str, Any]) -> Response:
     )
 
 
+def _too_many(rule: dict[str, Any], provider: str, now: float, grow: float,
+              *, window: float) -> Response:
+    """429 的形状。`Retry-After` 报的是**还要等多久**，不是配置里的那个整数。
+
+    这一点很要紧：罚站语义下剩余时间每次都在变，报旧值会让"等对了的客户端"
+    白等（它按 2s 等，实际还要 3s），于是性别退避也无从判断。
+    """
+    remaining = _penalty_remaining(rule, now)
+    wait = max(1, int(remaining + 0.999)) if remaining > 0 else int(rule["retry_after"])
+    # reset 报的是"还要多少秒才可能放行"：罚站时报冷却，纯窗口时报窗口滚出的时间
+    reset = int(remaining + 0.999) if remaining > 0 else int(rule["retry_after"])
+    return Response(
+        429,
+        {"error": "rate_limited", "provider": provider, "limit": rule["limit"],
+         "violations": int(rule.get("violations") or 0),
+         "_twin_hint": f"退避 {wait}s 后重试；窗口 {int(window)}s"
+                       + ("（罚站中，每撞一次解封更晚）" if grow else "")},
+        {
+            "Retry-After": str(wait),
+            "X-RateLimit-Limit": str(rule["limit"]),
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": str(reset),
+            "X-Twin-Rate-Limited": "true",
+            **({"X-Twin-Rate-Penalty": str(round(remaining, 3))} if remaining > 0 else {}),
+        },
+    )
+
+
 def _check_rate(run, provider: str, now: float) -> Response | None:
     rules = [r for r in _limits(run) if r["provider"] in ("*", provider)]
     if not rules:
         return None
     rule = rules[0]  # 同一 provider 只认第一条，避免两条规则叠加出无法复现的阈值
+
+    # 罚站优先于窗口：只要还在冷却里，任何请求都是 429，而且每撞一次都往后推。
+    # 这一条的顺序让"重发"变成**自伤**，而不退还只是无效 —— 退避因此有了可量的价值。
+    if float(rule.get("penalty_seconds") or 0) > 0:
+        remaining = _penalty_remaining(rule, now)
+        if remaining > 0:
+            grow = _enter_penalty(rule, now)
+            return _too_many(rule, provider, now, grow, window=float(rule["window_seconds"]))
+        if int(rule.get("violations") or 0) > 0:
+            # 罚站解封：违规计数留着（用来观察"它撞了几次才停"），窗口账本清空
+            rule["violations"] = 0
+            _used(run)[provider] = []
+
     used = _used(run).setdefault(provider, [])
     window = rule["window_seconds"]
     used[:] = [t for t in used if now - t < window]
     if len(used) >= rule["limit"]:
-        reset = int(window - (now - used[0])) + 1
-        return Response(
-            429,
-            {"error": "rate_limited", "provider": provider, "limit": rule["limit"],
-             "_twin_hint": f"退避 {rule['retry_after']}s 后重试；窗口 {int(window)}s"},
-            {
-                "Retry-After": str(rule["retry_after"]),
-                "X-RateLimit-Limit": str(rule["limit"]),
-                "X-RateLimit-Remaining": "0",
-                "X-RateLimit-Reset": str(reset),
-                "X-Twin-Rate-Limited": "true",
-            },
-        )
+        grow = _enter_penalty(rule, now) if float(rule.get("penalty_seconds") or 0) > 0 else 0.0
+        return _too_many(rule, provider, now, grow, window=window)
     used.append(now)
     return None
 

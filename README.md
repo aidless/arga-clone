@@ -7,7 +7,7 @@
 `base_url` and your Stripe / Slack / GitHub / Salesforce / Jira / Notion / HubSpot /
 Linear / Gmail / Google Calendar / Google Drive code runs against a writable,
 retry-safe, resettable simulator instead of production. 11 twins, 281 routes,
-80 hand-written tasks across 5 domains, 643 tests, zero third-party runtime
+80 hand-written tasks across 5 domains, 647 tests, zero third-party runtime
 dependencies (pure stdlib), and three access surfaces (HTTP · MCP · SDK).
 Every number in this README is recomputable from the files in this repo
 (`scripts/check_readme.py` fails the build when the docs drift from the code).
@@ -16,7 +16,7 @@ Every number in this README is recomputable from the files in this repo
 可写、可重试、可回滚、坏了也不伤真实数据的 Stripe / Slack 上跑。
 
 这是对 [Arga Labs](https://argalabs.com) 那套产品的技术复刻，零第三方依赖（纯 stdlib）：
-**11 个 twin / 281 条路由 / 80 道五域任务 / 79 道 gold 可解性证明 / 643 个测试全绿 /
+**11 个 twin / 281 条路由 / 80 道五域任务 / 79 道 gold 可解性证明 / 647 个测试全绿 /
 480 episodes 真模型实测（含 Wilson 区间与配对检验）/ 三条接入面（HTTP·MCP·SDK）/
 声明式边界（哪些端点"不打算做"）、run-scoped 严格令牌、故障注入（含
 "写已生效但响应失败"）、幂等键与客户端重试层、Link 分页、事件投递、乐观并发**。
@@ -25,7 +25,7 @@ Every number in this README is recomputable from the files in this repo
 git clone https://github.com/aidless/arga-clone && cd arga-clone
 pip install -e .            # 零运行时依赖，只装一个 entry point
 python3 -m argaclone.cli serve --port 8787        # 起服务（admin + 全部 twin 单端口）
-python3 -m pytest                                 # 643 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
+python3 -m pytest                                 # 647 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
 python3 demo/run_demo.py                          # 三种 agent 行为 → 三种判决
 python3 demo/agent_compare.py --limit 1           # 真模型跑 benchmark（需本地 LLM 网关）
 bash scripts/verify.sh                            # 十二层验收，任何一层红了就停
@@ -281,7 +281,7 @@ argaclone/
   mcp_server.py     MCP（Streamable HTTP / JSON-RPC 2.0）六工具，自动注入 run 凭据
   client.py         Python SDK（纯 urllib），只做 HTTP 不替服务端算状态
   cli.py            serve / twin-runs / scenarios / act / grade / state
-tests/              643 个用例，含 12 条 RED 反证
+tests/              647 个用例，含 12 条 RED 反证
   contracts/        跨 twin 契约层：新增 twin 未登记即 CI 红
 scenarios/          80 道任务 JSON（生成自 suite_*.py / suite_extra.py）+ build_suite.py 生成器
   suite_it.py / suite_crm.py / suite_mkt.py / suite_dev.py / suite_ecom.py
@@ -799,7 +799,7 @@ agent 会拿到"这个 CRM 里只有 3 个联系人"这个假事实，然后基�
 `twins/salesforce_twin.py`，36 条路由，工厂产出 + 三处必须手写的地方。它带来的是
 **第五种列表信封**和一条比信封更狠的教训，见下一节。
 
-当前规模：**11 个 twin / 281 条路由 / 80 道题 / 643 个测试全绿 / 十二层验收全过**。
+当前规模：**11 个 twin / 281 条路由 / 80 道题 / 647 个测试全绿 / 十二层验收全过**。
 
 ## 17. 错误体是数组：形状保真里最便宜的一条，也最容易被糊过去（2026-11-13）
 
@@ -924,7 +924,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
    声明式 stub：欠账 1 / 边界 1；严格令牌：假 401 / 真 200；默认模式放行（已知局限）
 ```
 
-`pytest` → **643 passed**，`bash scripts/verify.sh` → 十二层全过。
+`pytest` → **647 passed**，`bash scripts/verify.sh` → 十二层全过。
 
 ### 18.4 仍然没证明的
 
@@ -973,7 +973,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
 
 ```
 1/11 场景定义合法性        7/11 MCP 端点
-2/12 pytest（643）         8/12 SDK + PR 钩子
+2/12 pytest（647）         8/12 SDK + PR 钩子
 3/11 三态判分演示          9/11 边界与凭据（声明式 stub / 严格令牌）
 4/11 HTTP 面冒烟          10/11 README 数字可复算   ← 本轮新增
 5/12 gold 39/39           11/11 真模型冒烟（可选）
@@ -1815,34 +1815,62 @@ MIT —— 见 [LICENSE](LICENSE)。Copyright (c) 2026 YG.
 `clock.slept == []`。去掉这条，"退避"就退化成"多试了几次"的同义词，
 而所有只数重试次数的断言仍然绿。
 
-### 28.5 实测
+### 28.5 实测（两次，因为第一次是个否定结果）
 
-| 配置 | 通过 | Wilson 95% | FAIL | UNSAFE | 客户端重试 | 平均调用 | 墙钟 |
-|---|---|---|---|---|---|---|---|
-| `--retry-backoff 0.25`（退避） | 70/80 = **87.5%** | [78.5, 93.1] | 8 | 2 | 71 | 6.45 | 3427s |
-| 不退避（`--retry-backoff 0`） | 66/80 = **82.5%** | [72.7, 89.3] | 12 | 2 | 69 | 6.17 | 2758s |
+**第一版：纯滑动窗口，量不到。**
 
-配对（同一题、同一模型、同一剖面）：退避 **丢 7 题 / 赢 3 题**，`mcnemar_exact(7, 3)` **p=0.344**。
-两臂的 `duplicate_writes` 都是 **0**、最终落在 429 上的调用都是 **0**。
+| 配置（`limit=6/window=1s`） | 通过 | Wilson 95% | 客户端重试 | 平均调用 | 墙钟 |
+|---|---|---|---|---|---|
+| `--retry-backoff 0.25` | 70/80 = **87.5%** | [78.5, 93.1] | 71 | 6.45 | 3427s |
+| 不退避 | 66/80 = **82.5%** | [72.7, 89.3] | 69 | 6.17 | 2758s |
 
-**这个差额是噪声，而且原因比"样本小"更具体**：`throttled` 剖面最初配的是
-`limit=6 / window=1s`，而每一题平均只有 6 次调用 —— 模型自己在两次调用之间要思考
-好几秒，**窗口早就滚过去了**。所以限流规则在这 160 episodes 里一次都没咬住，
-两臂的差别只来自那一条 `503`，而 503 对退避不敏感（退避 0.25s 也救不了语义拒绝）。
+配对：丢 7 / 赢 3，`mcnemar_exact(7, 3)` **p=0.344**。两臂 `duplicate_writes` 都是 0，
+**落在 429 上的调用都是 0**。
 
-把窗口收紧到 `limit=2 / window=2s` 再看 10 题：两臂都是 7/10，退避臂记录了
-`retry_waits` 合计 0.996s、不退避臂 0.000s，429 仍然一次都没落到模型手上 ——
-因为在任何 2 秒窗口里，模型自己都凑不出第三次调用。
+原因不是样本小：每题平均只有 6 次调用，模型两次调用之间要思考好几秒，**窗口早滚过去了**。
+把窗口收紧到 `limit=2 / window=2s` 再跑 10 题：两臂都 7/10，退避臂 `retry_waits` 合计
+0.996s、不退避臂 0.000s，429 仍然一次都没落到模型手上 —— 任何 2 秒窗口里，模型都
+凑不出第三次调用。**模型的调用间隔比任何真实滑动窗口都长。**
 
-**结论（这是个否定结果，但它有用）**：在"模型驱动"的评测里量不到重试节奏。
-节奏要能被量，需要一串**紧挨着**的失败请求，而这只有客户端内部的重试会产生；
-模型自己的调用间隔比任何真实限流窗口都长。所以这一节的判据落在两处：
-`tests/test_retry_backoff.py` 的 8 条（含承重反证）与 `scripts/verify.sh` 第 10 层
-的 5d 段 —— 那里的调用是背靠背的，窗口咬得住。**评测这一层我不给数字，
-给的是"这一层测不出"这件事本身。**
+**第二版：预算 + 罚站，咬住了。**
+
+改 `chaos` 的限流形状（`penalty_seconds` / `max_penalty_seconds`）：每题 6 次预算，
+用完进冷却，**每撞一次解封更晚**（`penalty*(1.5**(violations-1))`，封顶）。
+这是 GitHub / Stripe 二级限流的真实形状 —— 它让"重发"从**无效**变成**自伤**。
+
+同剖面 `throttled` 重跑 80 题 × 2 臂：
+
+| 配置 | 通过 | Wilson 95% | FAIL | UNSAFE | 模型看到 429 | 客户端重试 | 等待合计 | 墙钟 |
+|---|---|---|---|---|---|---|---|---|
+| `--retry-backoff 0.3` | 70/80 = 87.5% | [78.5, 93.1] | 8 | 2 | **0 次** | 88 | **30.0s** | 623s |
+| 不退避 | 72/80 = **90.0%** | [81.5, 94.8] | 7 | 1 | **16 次**（13 题） | 130 | 0.0s | 589s |
+
+配对：退避丢 3 / 赢 5，`mcnemar_exact(3, 5)` **p=0.727**。
+
+**通过率还是没分开，但这次分开的是别的东西，而且它是个更硬的判据**：
+
+- 不退避臂有 **16 次 429 落到模型眼前**（13 题），退避臂是 **0 次**。也就是说，
+  罚站语义下"退避"买到的东西不是分数，是**模型不必看见失败** —— 它不再需要
+  "看到 429 → 决定怎么办"这一整套判断，那本来是最容易出错的一步。
+- 不退避臂的重试次数反而更多（130 vs 88）：因为每次重试都把自己推得更远，
+  于是重试得更久。**同样的重试预算，退避臂用 30.0s 的等待换掉了 16 次失败暴露。**
+- 探针（同预算、12 次连续读）：不退避 = 6 次 200 / 6 次 429；
+  退避 0.3s = **12 次全 200 / 0 次 429**。
+
+所以这一节的结论是两层，缺一层都不成立：
+
+1. **纯滑动窗口在模型驱动的评测里量不到节奏** —— 这条否定结果保留在表里，因为它
+   解释了为什么第一版数字是噪声，也钉住了"剖面必须先证明自己咬得住"这条纪律。
+2. **换成罚站语义后，退避的收益表现为"失败暴露次数"而不是"通过率"** ——
+   同样的题、同样的模型、同样的重试预算，16 次 vs 0 次。
 
 ### 28.6 这一节仍没证明的
 
+0. **罚站语义下"通过率为什么不分开"仍未解释清楚**。退避臂 70/80、不退避臂 72/80，
+   差额落在 p=0.727 的噪声区间里；两臂丢的题还互不相同（退避丢 crm-10 / dev-06 / ecom-05，
+   不退避丢 crm-11 / dev-07 / it-04…）。能说清的是"暴露次数差 16 比 0"，**不能**说清
+   "那 16 次暴露本来会不会变成错"。要能说清，得让模型在罚站里真的卡住 ——
+   现在的罚站最长 3s，它等得起。
 1. **抖动是均匀的，不是去相关的**。真实客户端会用"上一次的等待 + 随机"这类做法避免
    整个机群同步醒来；这里只有 full jitter，测不出"惊群"这一类问题（单进程评测本来也测不到）。
 2. **没有重试预算与熔断**。真实 SDK 常有"总共最多等 N 秒"或"连续失败就熔断"；

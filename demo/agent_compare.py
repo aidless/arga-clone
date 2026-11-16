@@ -99,10 +99,13 @@ CHAOS_RATE_LIMITS: dict[str, list[dict]] = {
     "off": [],
     "flaky": [],
     "ambiguous": [],
-    # limit=2/2s 是实测选出来的：80 题里每 episode 平均 6 次调用，limit=6/s 几乎撞不到
-    # 窗口（跑了 160 episodes，最终落在 429 上的调用是 0）—— 剖面没咬住，读数就只是噪声。
-    # limit=2/2s 会让"连着两个调用"就进窗口，退避才有可量的作用。
-    "throttled": [{"provider": "*", "limit": 2, "window_seconds": 2, "retry_after": 1}],
+    # `throttled` = 预算型：每题 6 次调用预算，超了进罚站（0.3s 起，每次翻倍，封顶 3s）。
+    #
+    # 为什么不是纯滑动窗口：§28.5 实测过 limit=6/window=1s 与 limit=2/window=2s 两档，
+    # 160+10 个 episode 里 429 一次都没落到模型手上 —— 模型两次调用之间思考好几秒，
+    # 窗口早滚过去了。罚站把"撞"这个动作本身变成代价，于是退避与不退避在分数上才分得开。
+    "throttled": [{"provider": "*", "limit": 6, "window_seconds": 600,
+                   "penalty_seconds": 0.3, "max_penalty_seconds": 3.0, "retry_after": 1}],
 }
 
 

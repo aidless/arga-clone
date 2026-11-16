@@ -362,6 +362,44 @@ assert _clock2 == [2.0], f"没按 Retry-After 等：{_clock2}"
 ch2.clear(app.store.get(rid), "rate_limits")
 ch2.clear(app.store.get(rid), "rate_used")
 
+# 5e) 预算型罚站：让"退避"第一次在分数之外的地方可量。
+#
+# 5d 段用的是纯滑动窗口，而纯窗口只在**背靠背**调用里咬得住。这一段换成罚站：
+# 预算用完进冷却，每撞一次解封更晚。判据不是"重试了几次"，是"过不过得去"。
+_budget = chaos.add_rate_limit(app.store.get(rid), {
+    "provider": "github", "limit": 3, "window_seconds": 600,
+    "penalty_seconds": 0.05, "max_penalty_seconds": 0.4, "retry_after": 1,
+})
+_gh = lambda: Action("github", "GET", "/user", None,
+                     headers={"authorization": f"Bearer {creds['github']}"})
+_flood = app.runner_for(rid)
+_flood.client_retries = 0
+for _ in range(3):
+    _flood.call(_gh())
+assert _flood.call(_gh())["status"] == 429, "预算用完却没进罚站"
+
+_hot = app.runner_for(rid)
+_hot.client_retries = 4
+_hot.retry_backoff = 0.0
+_hot.jitter = 0.0
+_hot._sleep = lambda s: None
+_cold = _hot.call(_gh())
+assert _cold["status"] == 429, "不退避竟然穿过了罚站"
+assert _cold["retry_waits"] == [0.0] * _cold["client_retries"], _cold["retry_waits"]
+
+_slow = app.runner_for(rid)
+_slow.client_retries = 4
+_slow.retry_backoff = 0.05
+_slow.retry_backoff_cap = 0.4
+_slow.jitter = 0.0
+import time as _t
+_slow._sleep = _t.sleep
+_warm = _slow.call(_gh())
+assert _warm["status"] == 200, f"退避没能等到解封：{_warm['status']}"
+assert sum(_warm["retry_waits"]) >= 0.04, _warm["retry_waits"]
+chaos.clear(app.store.get(rid), "rate_limits")
+chaos.clear(app.store.get(rid), "rate_used")
+
 # 6) 并发写：基于旧世界的写必须被拒，而不是覆盖
 app.store.directory = None  # 内存里做不了跨进程，起一个临时目录的 Store
 import tempfile
