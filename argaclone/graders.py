@@ -81,6 +81,13 @@ def resolve(path: str, state: dict[str, Any], trace: dict[str, Any] | None = Non
     刻意只支持确定性取值，不做模糊匹配、不做查询语言——一个足够小、
     足够可预测的取值器，比一个功能强但行为飘的语言更适合当判据。
     """
+    if path == "trace.count":
+        # `trace.count` 会静默算出"trace 这个 dict 有几个键"（10 上下），
+        # 而写这条判据的人想问的是"调用了几次"。二者在数值上几乎总在
+        # `lte 12` 这个区间里同时为真 —— 判据看起来在管预算，其实一直在放行。
+        # 实测代价：`trace.count lte 12` 在 24 次调用（撞满步数上限）的 episode 上
+        # 仍然为 True。宁可报 PATH_ERROR 让人改，也不要它安静地永远为真。
+        raise PathError("trace.count 是键数不是调用数；要数调用用 trace.calls.count")
     if path.startswith("trace."):
         node: Any = trace or {}
         rest = path.split(".")[1:]

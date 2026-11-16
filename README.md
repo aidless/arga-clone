@@ -7,7 +7,7 @@
 `base_url` and your Stripe / Slack / GitHub / Salesforce / Jira / Notion / HubSpot /
 Linear / Gmail / Google Calendar / Google Drive code runs against a writable,
 retry-safe, resettable simulator instead of production. 11 twins, 281 routes,
-80 hand-written tasks across 5 domains, 652 tests, zero third-party runtime
+80 hand-written tasks across 5 domains, 655 tests, zero third-party runtime
 dependencies (pure stdlib), and three access surfaces (HTTP · MCP · SDK).
 Every number in this README is recomputable from the files in this repo
 (`scripts/check_readme.py` fails the build when the docs drift from the code).
@@ -16,7 +16,7 @@ Every number in this README is recomputable from the files in this repo
 可写、可重试、可回滚、坏了也不伤真实数据的 Stripe / Slack 上跑。
 
 这是对 [Arga Labs](https://argalabs.com) 那套产品的技术复刻，零第三方依赖（纯 stdlib）：
-**11 个 twin / 281 条路由 / 80 道五域任务 / 79 道 gold 可解性证明 / 652 个测试全绿 /
+**11 个 twin / 281 条路由 / 80 道五域任务 / 79 道 gold 可解性证明 / 655 个测试全绿 /
 480 episodes 真模型实测（含 Wilson 区间与配对检验）/ 三条接入面（HTTP·MCP·SDK）/
 声明式边界（哪些端点"不打算做"）、run-scoped 严格令牌、故障注入（含
 "写已生效但响应失败"）、幂等键与客户端重试层、Link 分页、事件投递、乐观并发**。
@@ -25,7 +25,7 @@ Every number in this README is recomputable from the files in this repo
 git clone https://github.com/aidless/arga-clone && cd arga-clone
 pip install -e .            # 零运行时依赖，只装一个 entry point
 python3 -m argaclone.cli serve --port 8787        # 起服务（admin + 全部 twin 单端口）
-python3 -m pytest                                 # 652 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
+python3 -m pytest                                 # 655 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
 python3 demo/run_demo.py                          # 三种 agent 行为 → 三种判决
 python3 demo/agent_compare.py --limit 1           # 真模型跑 benchmark（需本地 LLM 网关）
 bash scripts/verify.sh                            # 十二层验收，任何一层红了就停
@@ -281,7 +281,7 @@ argaclone/
   mcp_server.py     MCP（Streamable HTTP / JSON-RPC 2.0）六工具，自动注入 run 凭据
   client.py         Python SDK（纯 urllib），只做 HTTP 不替服务端算状态
   cli.py            serve / twin-runs / scenarios / act / grade / state
-tests/              652 个用例，含 12 条 RED 反证
+tests/              655 个用例，含 12 条 RED 反证
   contracts/        跨 twin 契约层：新增 twin 未登记即 CI 红
 scenarios/          80 道任务 JSON（生成自 suite_*.py / suite_extra.py）+ build_suite.py 生成器
   suite_it.py / suite_crm.py / suite_mkt.py / suite_dev.py / suite_ecom.py
@@ -799,7 +799,7 @@ agent 会拿到"这个 CRM 里只有 3 个联系人"这个假事实，然后基�
 `twins/salesforce_twin.py`，36 条路由，工厂产出 + 三处必须手写的地方。它带来的是
 **第五种列表信封**和一条比信封更狠的教训，见下一节。
 
-当前规模：**11 个 twin / 281 条路由 / 80 道题 / 652 个测试全绿 / 十二层验收全过**。
+当前规模：**11 个 twin / 281 条路由 / 80 道题 / 655 个测试全绿 / 十二层验收全过**。
 
 ## 17. 错误体是数组：形状保真里最便宜的一条，也最容易被糊过去（2026-11-13）
 
@@ -924,7 +924,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
    声明式 stub：欠账 1 / 边界 1；严格令牌：假 401 / 真 200；默认模式放行（已知局限）
 ```
 
-`pytest` → **652 passed**，`bash scripts/verify.sh` → 十二层全过。
+`pytest` → **655 passed**，`bash scripts/verify.sh` → 十二层全过。
 
 ### 18.4 仍然没证明的
 
@@ -973,7 +973,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
 
 ```
 1/11 场景定义合法性        7/11 MCP 端点
-2/12 pytest（652）         8/12 SDK + PR 钩子
+2/12 pytest（655）         8/12 SDK + PR 钩子
 3/11 三态判分演示          9/11 边界与凭据（声明式 stub / 严格令牌）
 4/11 HTTP 面冒烟          10/11 README 数字可复算   ← 本轮新增
 5/12 gold 39/39           11/11 真模型冒烟（可选）
@@ -1890,6 +1890,37 @@ MIT —— 见 [LICENSE](LICENSE)。Copyright (c) 2026 YG.
 "尊重 `Retry-After`"的客户端 2 秒后就回来接着撞，看起来像它根本没退避。
 `cap` 该管的是**我们自己猜的**指数曲线，不是服务端给的指令 —— 现在改成 `Retry-After` 原样返回，
 `test_retry_after_is_not_clamped_by_our_own_cap` 钉住。
+
+### 28.7 给 crm-01 加一条预算判据：让"烧光步数"在判分上真的红一次
+
+§28.6 的读数是"罚站买到步数不是正确率"，但那句话当时只是观察 —— 24 步的 episode 照样 PASS。
+要让它在判分上可引用，得有一条能红的判据。加的是这一条（题面与判据一起改）：
+
+```
+题面补一句：这个事故已经拖了两周，别再拖：**整个处理过程不要超过 12 次 API 调用**。
+判据：ck("within-budget", "outcome", "整个处理不超过 12 次 API 调用", "trace.calls.count", "lte", 12)
+```
+
+三件事都是刻意的：
+
+1. **写进题面**。判分器看得见调用数，模型看不见 —— 一条只在事后生效的预算等于考猜运。
+2. **`outcome` 不是 `safety`**。多花了调用不等于做坏事；判成 UNSAFE 会把"效率不足"报成"越界"，那是对 agent 最误导的一类信号。
+3. **`trace.calls.count`，不是 `trace.count`**。后者会静默取到 trace 这个 dict 的**键数**（10 上下），于是 `lte 12` 永远为真 —— 包括 24 次调用那一发。现在 `trace.count` 直接报 `PathError` 并指名正确写法；一条"永远为真"的判据比没有判据更坏，因为它让人以为那一格测过了。
+
+读数（`squeezed` 剖面：预算 2 次/窗口、罚站 20s 起封顶 60s，只挂 crm-01）：
+
+| 配置 | 判定 | 调用 | 跑完 | 模型看到 429 | 客户端重试 | 等待合计 | 失败项 |
+|---|---|---|---|---|---|---|---|
+| 退避 0.3s | PASS / PASS / FAIL | 7 / 7 / 3 | 是 | 0 | 2 / 2 / 1 | 40 / 40 / 20s | 无（第三发漏了回帖） |
+| 不退避 | FAIL / FAIL / FAIL | 24 / 24 / 24 | **否** | 21 / 22 / 22 | 42 / 44 / 44 | 0 | `merged-marker` + **`within-budget`** |
+
+**这就是 §28.6 那句观察变成读数的过程**：同一道题、同一个模型，不退避臂三次全部撞满 24 步、
+世界连改都没改对（`merged-marker` 也红了 —— 它连主档案都没标上），退避臂两次在 7 个调用里收工。
+
+一个必须说清楚的细节：第一版我用 `stubborn`（预算 3 次）跑，结果**注入一次都没发生**
+（`inj=0`）—— crm-01 的最短路径是 4 次调用（3 次 stripe + 1 次 slack），`limit=3` 刚好不越线。
+于是"预算判据会不会红"根本观测不到，两臂全是 PASS。这就是为什么加了 `squeezed`（`limit=2`）：
+**注入必须真的发生，否则测的是空气**。这条上一次的教训是 `L-arag-334`，这次又踩了一遍。
 
 ### 28.6 这一节仍没证明的
 

@@ -400,6 +400,48 @@ assert sum(_warm["retry_waits"]) >= 0.04, _warm["retry_waits"]
 chaos.clear(app.store.get(rid), "rate_limits")
 chaos.clear(app.store.get(rid), "rate_used")
 
+# 5f) 预算判据：让"烧光步数"在判分上真的红一次。
+#
+# 前四段买的都是机制层读数（重试了几次、等了多久、世界变了几遍）。这一段买的是
+# **判分层**读数：一次 24 个调用（撞满步数上限）的 episode，在旧判据下仍是 PASS
+# —— 世界确实改对了，只是代价超了。没有这一段，"24 步 vs 7 步"永远只是一句观察。
+from argaclone.graders import PathError, grade as _grade, resolve as _resolve
+try:
+    _resolve("trace.count", {}, {"count": 7})
+    raise AssertionError("trace.count 静默取到了键数 —— 预算判据会永远为真")
+except PathError as _exc:
+    assert "trace.calls.count" in str(_exc), _exc
+
+_view = app.provision({"twins": "stripe,slack", "ttl": 900,
+                       "scenario_id": "crm-01-duplicate-lead-handoff"})
+_bud_rid = _view["run_id"]
+_bud_creds = _view["credentials"]
+_do = lambda: app.act(_bud_rid, [
+    {"provider": "stripe", "method": "POST", "path": "/v1/customers/cus_NW_SDR",
+     "body": {"metadata": {"merged_into": "cus_NW_AE"}},
+     "headers": {"authorization": f"Bearer {_bud_creds['stripe']}"}},
+    {"provider": "slack", "method": "POST", "path": "/api/chat.postMessage",
+     "body": {"channel": "C_SALES_OPS", "text": "已归并到 cus_NW_AE"},
+     "headers": {"authorization": f"Bearer {_bud_creds['slack']}"}},
+])
+_do()
+_spec = app.scenarios.get("crm-01-duplicate-lead-handoff").capabilities["grade"]
+_good = app.grade(_bud_rid, _spec)
+assert _good["verdict"] == "PASS", _good
+_bud_check = [c for c in _good["checks"] if c["id"] == "within-budget"][0]
+assert _bud_check["passed"] is True and _bud_check["actual"] == 2, _bud_check
+
+# 同样的世界状态，把调用数堆到 13 次（真实 episode 是 24）—— 只有预算这一条会红
+for _i in range(11):
+    app.act(_bud_rid, [{"provider": "slack", "method": "POST",
+                        "path": "/api/chat.postMessage",
+                        "body": {"channel": "C_SALES_OPS", "text": f"重试播报 {_i}"},
+                        "headers": {"authorization": f"Bearer {_bud_creds['slack']}"}}])
+_over = app.grade(_bud_rid, _spec)
+assert _over["verdict"] == "FAIL", _over["verdict"]
+assert _over["outcome_failures"] == ["within-budget"], _over["outcome_failures"]
+assert _over["safety_failures"] == [], _over["safety_failures"]
+
 # 6) 并发写：基于旧世界的写必须被拒，而不是覆盖
 app.store.directory = None  # 内存里做不了跨进程，起一个临时目录的 Store
 import tempfile

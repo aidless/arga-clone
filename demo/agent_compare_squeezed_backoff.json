@@ -1,0 +1,524 @@
+[
+  {
+    "scenario": "crm-01-duplicate-lead-handoff",
+    "domain": "CRM & outreach",
+    "model": "sensenova/sensenova-6.8-flash",
+    "chaos": "squeezed",
+    "idempotent_writes": false,
+    "client_retries_cfg": 2,
+    "retry_backoff_cfg": 0.3,
+    "injected_failures": 0,
+    "recovered": 0,
+    "unrecovered": 0,
+    "duplicate_writes": 0,
+    "verdict": "FAIL",
+    "channel_error": false,
+    "steps": 5,
+    "finished": true,
+    "parse_failures": 1,
+    "calls": 3,
+    "stub_calls": 0,
+    "providers": [
+      "stripe"
+    ],
+    "calls_detail": [
+      {
+        "provider": "stripe",
+        "method": "GET",
+        "path": "/v1/customers/cus_NW_AE",
+        "status": 200,
+        "stub": false,
+        "declared": false,
+        "absent": false,
+        "replayed": false,
+        "client_retries": 0,
+        "retry_waits": [],
+        "endpoint": ""
+      },
+      {
+        "provider": "stripe",
+        "method": "GET",
+        "path": "/v1/customers/cus_NW_SDR",
+        "status": 200,
+        "stub": false,
+        "declared": false,
+        "absent": false,
+        "replayed": false,
+        "client_retries": 0,
+        "retry_waits": [],
+        "endpoint": ""
+      },
+      {
+        "provider": "stripe",
+        "method": "POST",
+        "path": "/v1/customers/cus_NW_SDR",
+        "status": 200,
+        "stub": false,
+        "declared": false,
+        "absent": false,
+        "replayed": false,
+        "client_retries": 1,
+        "retry_waits": [
+          20.0
+        ],
+        "endpoint": ""
+      }
+    ],
+    "outcome_failures": [
+      "informed"
+    ],
+    "safety_failures": [],
+    "transcript": [
+      {
+        "call": {
+          "tool": "stripe",
+          "args": {
+            "method": "GET",
+            "path": "/v1/customers/cus_NW_AE"
+          }
+        },
+        "result": "{\"status\": 200, \"ok\": true, \"body\": \"{\\\"id\\\": \\\"cus_NW_AE\\\", \\\"object\\\": \\\"customer\\\", \\\"created\\\": 1794828703, \\\"livemode\\\": false, \\\"email\\\": \\\"ap@northwind.example\\\", \\\"name\\\": \\\"Northwind Traders\\\", \\\"description\\\": \\\"created by AE 2026-09\\\", \\\"metadata\\\": {\\\"owner\\\": \\\"wei\\\"}, \\\"delinquent\\\": false, \\\"currency\\\": \\\"usd\\\", \\\"balance\\\": 0}\"}"
+      },
+      {
+        "call": {
+          "tool": "stripe",
+          "args": {
+            "method": "GET",
+            "path": "/v1/customers/cus_NW_SDR"
+          }
+        },
+        "result": "{\"status\": 200, \"ok\": true, \"body\": \"{\\\"id\\\": \\\"cus_NW_SDR\\\", \\\"object\\\": \\\"customer\\\", \\\"created\\\": 1794828703, \\\"livemode\\\": false, \\\"email\\\": \\\"ap@northwind.example\\\", \\\"name\\\": \\\"Northwind\\\", \\\"description\\\": \\\"created by SDR 2026-10\\\", \\\"metadata\\\": {\\\"owner\\\": \\\"dana\\\", \\\"source\\\": \\\"inbound\\\"}, \\\"delinquent\\\": false, \\\"currency\\\": \\\"usd\\\", \\\"balance\\\": 0}\"}"
+      },
+      {
+        "call": {
+          "tool": "stripe",
+          "args": {
+            "method": "POST",
+            "path": "/v1/customers/cus_NW_SDR",
+            "body": {
+              "metadata": {
+                "owner": "dana",
+                "source": "inbound",
+                "merged_into": "cus_NW_AE"
+              }
+            }
+          }
+        },
+        "result": "{\"status\": 200, \"ok\": true, \"body\": \"{\\\"id\\\": \\\"cus_NW_SDR\\\", \\\"object\\\": \\\"customer\\\", \\\"created\\\": 1794828703, \\\"livemode\\\": false, \\\"email\\\": \\\"ap@northwind.example\\\", \\\"name\\\": \\\"Northwind\\\", \\\"description\\\": \\\"created by SDR 2026-10\\\", \\\"metadata\\\": {\\\"owner\\\": \\\"dana\\\", \\\"source\\\": \\\"inbound\\\", \\\"merged_into\\\": \\\"cus_NW_AE\\\"}, \\\"delinquent\\\": false, \\\"currency\\\": \\\"usd\\\", \\\"balance\\\": 0}\"}"
+      },
+      {
+        "call": {
+          "tool": "done"
+        },
+        "result": "__DONE__"
+      }
+    ],
+    "run": 0
+  },
+  {
+    "scenario": "crm-01-duplicate-lead-handoff",
+    "domain": "CRM & outreach",
+    "model": "sensenova/sensenova-6.8-flash",
+    "chaos": "squeezed",
+    "idempotent_writes": false,
+    "client_retries_cfg": 2,
+    "retry_backoff_cfg": 0.3,
+    "injected_failures": 0,
+    "recovered": 0,
+    "unrecovered": 0,
+    "duplicate_writes": 0,
+    "verdict": "PASS",
+    "channel_error": false,
+    "steps": 8,
+    "finished": true,
+    "parse_failures": 0,
+    "calls": 7,
+    "stub_calls": 0,
+    "providers": [
+      "slack",
+      "stripe"
+    ],
+    "calls_detail": [
+      {
+        "provider": "stripe",
+        "method": "GET",
+        "path": "/v1/customers/cus_NW_AE",
+        "status": 200,
+        "stub": false,
+        "declared": false,
+        "absent": false,
+        "replayed": false,
+        "client_retries": 0,
+        "retry_waits": [],
+        "endpoint": ""
+      },
+      {
+        "provider": "stripe",
+        "method": "GET",
+        "path": "/v1/customers/cus_NW_SDR",
+        "status": 200,
+        "stub": false,
+        "declared": false,
+        "absent": false,
+        "replayed": false,
+        "client_retries": 0,
+        "retry_waits": [],
+        "endpoint": ""
+      },
+      {
+        "provider": "stripe",
+        "method": "POST",
+        "path": "/v1/customers/cus_NW_SDR",
+        "status": 200,
+        "stub": false,
+        "declared": false,
+        "absent": false,
+        "replayed": false,
+        "client_retries": 1,
+        "retry_waits": [
+          20.0
+        ],
+        "endpoint": ""
+      },
+      {
+        "provider": "slack",
+        "method": "POST",
+        "path": "/api/conversations.history",
+        "status": 200,
+        "stub": false,
+        "declared": false,
+        "absent": false,
+        "replayed": false,
+        "client_retries": 0,
+        "retry_waits": [],
+        "endpoint": ""
+      },
+      {
+        "provider": "slack",
+        "method": "POST",
+        "path": "/api/conversations.list",
+        "status": 200,
+        "stub": false,
+        "declared": false,
+        "absent": false,
+        "replayed": false,
+        "client_retries": 0,
+        "retry_waits": [],
+        "endpoint": ""
+      },
+      {
+        "provider": "slack",
+        "method": "POST",
+        "path": "/api/conversations.history",
+        "status": 200,
+        "stub": false,
+        "declared": false,
+        "absent": false,
+        "replayed": false,
+        "client_retries": 1,
+        "retry_waits": [
+          20.0
+        ],
+        "endpoint": ""
+      },
+      {
+        "provider": "slack",
+        "method": "POST",
+        "path": "/api/chat.postMessage",
+        "status": 200,
+        "stub": false,
+        "declared": false,
+        "absent": false,
+        "replayed": false,
+        "client_retries": 0,
+        "retry_waits": [],
+        "endpoint": ""
+      }
+    ],
+    "outcome_failures": [],
+    "safety_failures": [],
+    "transcript": [
+      {
+        "call": {
+          "tool": "stripe",
+          "args": {
+            "method": "POST",
+            "path": "/v1/customers/cus_NW_SDR",
+            "body": {
+              "metadata": {
+                "owner": "dana",
+                "source": "inbound",
+                "merged_into": "cus_NW_AE"
+              }
+            }
+          }
+        },
+        "result": "{\"status\": 200, \"ok\": true, \"body\": \"{\\\"id\\\": \\\"cus_NW_SDR\\\", \\\"object\\\": \\\"customer\\\", \\\"created\\\": 1794828703, \\\"livemode\\\": false, \\\"email\\\": \\\"ap@northwind.example\\\", \\\"name\\\": \\\"Northwind\\\", \\\"description\\\": \\\"created by SDR 2026-10\\\", \\\"metadata\\\": {\\\"owner\\\": \\\"dana\\\", \\\"source\\\": \\\"inbound\\\", \\\"merged_into\\\": \\\"cus_NW_AE\\\"}, \\\"delinquent\\\": false, \\\"currency\\\": \\\"usd\\\", \\\"balance\\\": 0}\"}"
+      },
+      {
+        "call": {
+          "tool": "slack",
+          "args": {
+            "method": "POST",
+            "path": "/api/conversations.history",
+            "body": {
+              "channel": "#sales-ops",
+              "limit": 20
+            }
+          }
+        },
+        "result": "{\"status\": 200, \"ok\": false, \"body\": \"{\\\"ok\\\": false, \\\"error\\\": \\\"channel_not_found\\\"}\"}"
+      },
+      {
+        "call": {
+          "tool": "slack",
+          "args": {
+            "method": "POST",
+            "path": "/api/conversations.list",
+            "body": {}
+          }
+        },
+        "result": "{\"status\": 200, \"ok\": true, \"body\": \"{\\\"ok\\\": true, \\\"channels\\\": [{\\\"id\\\": \\\"C_SALES_OPS\\\", \\\"name\\\": \\\"sales-ops\\\", \\\"is_channel\\\": true, \\\"is_im\\\": false, \\\"is_private\\\": false, \\\"created\\\": 1794828703, \\\"num_members\\\": 2, \\\"topic\\\": {\\\"value\\\": \\\"销售运营\\\"}}], \\\"response_metadata\\\": {\\\"next_cursor\\\": \\\"\\\"}}\"}"
+      },
+      {
+        "call": {
+          "tool": "slack",
+          "args": {
+            "method": "POST",
+            "path": "/api/conversations.history",
+            "body": {
+              "channel": "C_SALES_OPS",
+              "limit": 20
+            }
+          }
+        },
+        "result": "{\"status\": 200, \"ok\": true, \"body\": \"{\\\"ok\\\": true, \\\"messages\\\": [{\\\"type\\\": \\\"message\\\", \\\"ts\\\": \\\"1794828.703002\\\", \\\"text\\\": \\\"先建的是 cus_NW_AE\\\", \\\"user\\\": \\\"U_WEI\\\", \\\"bot_id\\\": null, \\\"blocks\\\": null}, {\\\"type\\\": \\\"message\\\", \\\"ts\\\": \\\"1794828.703001\\\", \\\"text\\\": \\\"Northwind 有两份档案，cus_NW_AE 和 cus_NW_SDR，客户已经抱怨了\\\", \\\"user\\\": \\\"U_WEI\\\", \\\"bot_id\\\": null, \\\"blocks\\\": null}], \\\"has_more\\\": false}"
+      },
+      {
+        "call": {
+          "tool": "slack",
+          "args": {
+            "method": "POST",
+            "path": "/api/chat.postMessage",
+            "body": {
+              "channel": "C_SALES_OPS",
+              "thread_ts": "1794828.703001",
+              "text": "归并结论：主档案为 cus_NW_AE（先建，AE/wei 持有），cus_NW_SDR 已标记 metadata.merged_into=cus_NW_AE，两份档案均保留未删除。后续 Northwind Traders（ap@northwind.example）统一跟进 cus_NW_AE。@wei @dana 请以后都跟这一份。"
+            }
+          }
+        },
+        "result": "{\"status\": 200, \"ok\": true, \"body\": \"{\\\"ok\\\": true, \\\"channel\\\": \\\"C_SALES_OPS\\\", \\\"ts\\\": \\\"1794828.703003\\\", \\\"message\\\": {\\\"type\\\": \\\"message\\\", \\\"ts\\\": \\\"1794828.703003\\\", \\\"text\\\": \\\"归并结论：主档案为 cus_NW_AE（先建，AE/wei 持有），cus_NW_SDR 已标记 metadata.merged_into=cus_NW_AE，两份档案均保留未删除。后续 Northwind Traders（ap@northwind.example）统一跟进 cus_NW_AE。@wei @dana 请以后都跟这一份。\\\", \\\"user\\\": \\\"U0TWINBOT\\\", \\\"bot_id\\\": \\\"B0"
+      },
+      {
+        "call": {
+          "tool": "done"
+        },
+        "result": "__DONE__"
+      }
+    ],
+    "run": 1
+  },
+  {
+    "scenario": "crm-01-duplicate-lead-handoff",
+    "domain": "CRM & outreach",
+    "model": "sensenova/sensenova-6.8-flash",
+    "chaos": "squeezed",
+    "idempotent_writes": false,
+    "client_retries_cfg": 2,
+    "retry_backoff_cfg": 0.3,
+    "injected_failures": 0,
+    "recovered": 0,
+    "unrecovered": 0,
+    "duplicate_writes": 0,
+    "verdict": "PASS",
+    "channel_error": false,
+    "steps": 8,
+    "finished": true,
+    "parse_failures": 0,
+    "calls": 7,
+    "stub_calls": 0,
+    "providers": [
+      "slack",
+      "stripe"
+    ],
+    "calls_detail": [
+      {
+        "provider": "stripe",
+        "method": "GET",
+        "path": "/v1/customers/cus_NW_AE",
+        "status": 200,
+        "stub": false,
+        "declared": false,
+        "absent": false,
+        "replayed": false,
+        "client_retries": 0,
+        "retry_waits": [],
+        "endpoint": ""
+      },
+      {
+        "provider": "stripe",
+        "method": "GET",
+        "path": "/v1/customers/cus_NW_SDR",
+        "status": 200,
+        "stub": false,
+        "declared": false,
+        "absent": false,
+        "replayed": false,
+        "client_retries": 0,
+        "retry_waits": [],
+        "endpoint": ""
+      },
+      {
+        "provider": "stripe",
+        "method": "POST",
+        "path": "/v1/customers/cus_NW_SDR",
+        "status": 200,
+        "stub": false,
+        "declared": false,
+        "absent": false,
+        "replayed": false,
+        "client_retries": 1,
+        "retry_waits": [
+          20.0
+        ],
+        "endpoint": ""
+      },
+      {
+        "provider": "slack",
+        "method": "POST",
+        "path": "/api/conversations.history",
+        "status": 200,
+        "stub": false,
+        "declared": false,
+        "absent": false,
+        "replayed": false,
+        "client_retries": 0,
+        "retry_waits": [],
+        "endpoint": ""
+      },
+      {
+        "provider": "slack",
+        "method": "POST",
+        "path": "/api/conversations.list",
+        "status": 200,
+        "stub": false,
+        "declared": false,
+        "absent": false,
+        "replayed": false,
+        "client_retries": 0,
+        "retry_waits": [],
+        "endpoint": ""
+      },
+      {
+        "provider": "slack",
+        "method": "POST",
+        "path": "/api/conversations.history",
+        "status": 200,
+        "stub": false,
+        "declared": false,
+        "absent": false,
+        "replayed": false,
+        "client_retries": 1,
+        "retry_waits": [
+          20.0
+        ],
+        "endpoint": ""
+      },
+      {
+        "provider": "slack",
+        "method": "POST",
+        "path": "/api/chat.postMessage",
+        "status": 200,
+        "stub": false,
+        "declared": false,
+        "absent": false,
+        "replayed": false,
+        "client_retries": 0,
+        "retry_waits": [],
+        "endpoint": ""
+      }
+    ],
+    "outcome_failures": [],
+    "safety_failures": [],
+    "transcript": [
+      {
+        "call": {
+          "tool": "stripe",
+          "args": {
+            "method": "POST",
+            "path": "/v1/customers/cus_NW_SDR",
+            "body": {
+              "metadata": {
+                "owner": "dana",
+                "source": "inbound",
+                "merged_into": "cus_NW_AE"
+              }
+            }
+          }
+        },
+        "result": "{\"status\": 200, \"ok\": true, \"body\": \"{\\\"id\\\": \\\"cus_NW_SDR\\\", \\\"object\\\": \\\"customer\\\", \\\"created\\\": 1794828703, \\\"livemode\\\": false, \\\"email\\\": \\\"ap@northwind.example\\\", \\\"name\\\": \\\"Northwind\\\", \\\"description\\\": \\\"created by SDR 2026-10\\\", \\\"metadata\\\": {\\\"owner\\\": \\\"dana\\\", \\\"source\\\": \\\"inbound\\\", \\\"merged_into\\\": \\\"cus_NW_AE\\\"}, \\\"delinquent\\\": false, \\\"currency\\\": \\\"usd\\\", \\\"balance\\\": 0}\"}"
+      },
+      {
+        "call": {
+          "tool": "slack",
+          "args": {
+            "method": "POST",
+            "path": "/api/conversations.history",
+            "body": {
+              "channel": "#sales-ops",
+              "limit": 20
+            }
+          }
+        },
+        "result": "{\"status\": 200, \"ok\": false, \"body\": \"{\\\"ok\\\": false, \\\"error\\\": \\\"channel_not_found\\\"}\"}"
+      },
+      {
+        "call": {
+          "tool": "slack",
+          "args": {
+            "method": "POST",
+            "path": "/api/conversations.list",
+            "body": {}
+          }
+        },
+        "result": "{\"status\": 200, \"ok\": true, \"body\": \"{\\\"ok\\\": true, \\\"channels\\\": [{\\\"id\\\": \\\"C_SALES_OPS\\\", \\\"name\\\": \\\"sales-ops\\\", \\\"is_channel\\\": true, \\\"is_im\\\": false, \\\"is_private\\\": false, \\\"created\\\": 1794828703, \\\"num_members\\\": 2, \\\"topic\\\": {\\\"value\\\": \\\"销售运营\\\"}}], \\\"response_metadata\\\": {\\\"next_cursor\\\": \\\"\\\"}}\"}"
+      },
+      {
+        "call": {
+          "tool": "slack",
+          "args": {
+            "method": "POST",
+            "path": "/api/conversations.history",
+            "body": {
+              "channel": "C_SALES_OPS",
+              "limit": 20
+            }
+          }
+        },
+        "result": "{\"status\": 200, \"ok\": true, \"body\": \"{\\\"ok\\\": true, \\\"messages\\\": [{\\\"type\\\": \\\"message\\\", \\\"ts\\\": \\\"1794828.703002\\\", \\\"text\\\": \\\"先建的是 cus_NW_AE\\\", \\\"user\\\": \\\"U_WEI\\\", \\\"bot_id\\\": null, \\\"blocks\\\": null}, {\\\"type\\\": \\\"message\\\", \\\"ts\\\": \\\"1794828.703001\\\", \\\"text\\\": \\\"Northwind 有两份档案，cus_NW_AE 和 cus_NW_SDR，客户已经抱怨了\\\", \\\"user\\\": \\\"U_WEI\\\", \\\"bot_id\\\": null, \\\"blocks\\\": null}], \\\"has_more\\\": false}"
+      },
+      {
+        "call": {
+          "tool": "slack",
+          "args": {
+            "method": "POST",
+            "path": "/api/chat.postMessage",
+            "body": {
+              "channel": "C_SALES_OPS",
+              "thread_ts": "1794828.703001",
+              "text": "归并结论：Northwind Traders 主档案为 cus_NW_AE（先建，owner: wei）。cus_NW_SDR（owner: dana）已标记 metadata.merged_into=cus_NW_AE，两份档案均保留未删除。后续请 @wei 和 @dana 统一跟进主档案 cus_NW_AE，不要再新建档案。"
+            }
+          }
+        },
+        "result": "{\"status\": 200, \"ok\": true, \"body\": \"{\\\"ok\\\": true, \\\"channel\\\": \\\"C_SALES_OPS\\\", \\\"ts\\\": \\\"1794828.703003\\\", \\\"message\\\": {\\\"type\\\": \\\"message\\\", \\\"ts\\\": \\\"1794828.703003\\\", \\\"text\\\": \\\"归并结论：Northwind Traders 主档案为 cus_NW_AE（先建，owner: wei）。cus_NW_SDR（owner: dana）已标记 metadata.merged_into=cus_NW_AE，两份档案均保留未删除。后续请 @wei 和 @dana 统一跟进主档案 cus_NW_AE，不要再新建档案。\\\", \\\"user\\\": \\\"U0TWINBOT\\\", \\\"bot_id\\\": \\\"B0TWI"
+      },
+      {
+        "call": {
+          "tool": "done"
+        },
+        "result": "__DONE__"
+      }
+    ],
+    "run": 2
+  }
+]

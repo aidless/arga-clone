@@ -101,6 +101,7 @@ CHAOS_PROFILES: dict[str, list[dict]] = {
     # 只挂在两道题上（见 CHAOS_SCOPED_SCENARIOS）：全量 80 题每题都可能真睡
     # 20-60 秒，那是几小时的墙钟，而结论只需要两道题就能看出来。
     "stubborn": [],
+    "squeezed": [],
 }
 
 # 限流单独一张表：它不是 fault（不进 X-Twin-Fault 的计数），而是窗口规则。
@@ -115,6 +116,12 @@ CHAOS_RATE_LIMITS: dict[str, list[dict]] = {
     # 窗口早滚过去了。罚站把"撞"这个动作本身变成代价，于是退避与不退避在分数上才分得开。
     "throttled": [{"provider": "*", "limit": 6, "window_seconds": 600,
                    "penalty_seconds": 0.3, "max_penalty_seconds": 3.0, "retry_after": 1}],
+    # squeezed = 跟 stubborn 同一罚站，但预算收到 2 次/窗口。
+    # 为什么需要这一档：limit=3 时，一道最短路径 4 次调用（stripe 3 + slack 1）的题
+    # **刚好不越线**，注入一次都没发生（inj=0），于是"预算判据会不会红"根本观测不到。
+    # 收到 2 就让第 3 次 stripe 调用必然撞墙 —— 注入必须真的发生，否则测的是空气。
+    "squeezed": [{"provider": "*", "limit": 2, "window_seconds": 900,
+                  "penalty_seconds": 20.0, "max_penalty_seconds": 60.0, "retry_after": 20}],
     "stubborn": [{"provider": "*", "limit": 3, "window_seconds": 900,
                   "penalty_seconds": 20.0, "max_penalty_seconds": 60.0, "retry_after": 20}],
 }
@@ -123,6 +130,7 @@ CHAOS_RATE_LIMITS: dict[str, list[dict]] = {
 # 墙钟会变成几小时，而结论只需要两道题 —— 判据的强度来自剖面本身，不来自题数。
 CHAOS_SCOPED_SCENARIOS: dict[str, tuple[str, ...]] = {
     "stubborn": ("crm-01", "crm-02"),
+    "squeezed": ("crm-01",),
 }
 
 

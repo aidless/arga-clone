@@ -6,6 +6,9 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from argaclone.graders import PathError, evaluate, grade, resolve
@@ -161,6 +164,21 @@ def test_path_error_is_visible_not_a_silent_fail():
     assert missing.checks[0].actual is None
 
 
+def test_trace_count_is_a_loud_error_not_a_key_count():
+    """`trace.count` 必须报错，不能静默算成"trace 这个 dict 有几个键"。
+
+    实测代价：一条 `trace.calls.count lte 12` 式的预算判据如果写成 `trace.count`，
+    它会取到 10 上下的键数，于是**永远为真** —— 包括一次跑了 24 个调用（撞满步数
+    上限）的 episode。判据看起来在管预算，其实一直在放行；而"永远为真"的判据
+    比没有判据更坏，因为它会让人以为那一格测过了。
+    """
+    trace = {"count": 7, "calls": [{}] * 7}
+    assert resolve("trace.calls.count", {}, trace) == 7
+    with pytest.raises(PathError) as exc:
+        resolve("trace.count", {}, trace)
+    assert "trace.calls.count" in str(exc.value)
+
+
 def test_resolve_wildcard_and_count():
     state = {"stripe": {"customers": {"a": {"email": "x@y"}, "b": {"email": "z@y"}}}}
     assert resolve("stripe.customers.count", state) == 2
@@ -173,6 +191,117 @@ def test_resolve_wildcard_and_count():
         resolve("stripe.customers.count.email", state)
     with pytest.raises(PathError):
         resolve("stripe.customers.keys.email", state)
+
+
+def _post(app, run_id, text):
+    return app.act(run_id, [{
+        "provider": "slack",
+        "method": "POST",
+        "path": "/api/chat.postMessage",
+        "body": {"channel": "C_SALES_OPS", "text": text},
+        "headers": SLACK,
+    }])
+
+
+def test_budget_criterion_reds_on_the_recorded_twenty_four_call_episode(app):
+    """把真实跑出来的那一发拿出来复判：24 次调用的 episode 现在必须红。
+
+    为什么这条比"造 13 个调用"强：13 是我编的数字，24 是 `stubborn` 剖面下
+    不退避的客户端真实撞出来的（`demo/agent_compare_stubborn2_nobackoff.json`）。
+    判据要能红在**真实发生过的**那一发上，才算这条度量买到了东西。
+
+    只复判 trace 长度，不重放那 24 个调用：`calls_detail` 里没存请求 body，
+    重放要靠猜；而这条判据只需要调用条数。世界用 gold 解法造 ——
+    也就是"事做对了，代价超了"这个真实形状。
+    """
+    sid = "crm-01-duplicate-lead-handoff"
+    spec = app.scenarios.get(sid).capabilities["grade"]
+    recorded = json.loads(
+        (Path(__file__).resolve().parent.parent
+         / "demo" / "agent_compare_stubborn2_nobackoff.json").read_text()
+    )
+    rows = recorded if isinstance(recorded, list) else recorded["results"]
+    burned = [r for r in rows if r["scenario"] == sid][0]
+    assert burned["verdict"] == "PASS"          # 旧判据下它是 PASS —— 这就是缺口
+    assert burned["finished"] is False
+    assert len(burned["calls_detail"]) == 24
+
+    ok_arm = json.loads(
+        (Path(__file__).resolve().parent.parent
+         / "demo" / "agent_compare_stubborn2_backoff.json").read_text()
+    )
+    ok_rows = ok_arm if isinstance(ok_arm, list) else ok_arm["results"]
+    cheap = [r for r in ok_rows if r["scenario"] == sid][0]
+    assert len(cheap["calls_detail"]) == 6
+
+    view = app.provision({"twins": "stripe,slack", "ttl": 600, "scenario_id": sid})
+    rid = view["run_id"]
+    app.act(rid, [
+        {"provider": "stripe", "method": "POST", "path": "/v1/customers/cus_NW_SDR",
+         "body": {"metadata": {"merged_into": "cus_NW_AE"}}, "headers": STRIPE},
+        {"provider": "slack", "method": "POST", "path": "/api/chat.postMessage",
+         "body": {"channel": "C_SALES_OPS", "text": "已归并到 cus_NW_AE"}, "headers": SLACK},
+    ])
+    state = app.state(rid)["state"]
+
+    # trace 的其余部分（bodies/writes）必须是真的：`informed` 那条判据看的是
+    # 回帖落在哪个频道，用空列表造 trace 会让"判据红了"变成我的脚手架造错了。
+    base_trace = app.store.get(rid).extras["last_trace"]
+    # 只替换 `calls` 的长度，bodies/writes 用真实的 —— 否则红的是我的脚手架。
+    cheap_trace = {**base_trace, "calls": [{}] * len(cheap["calls_detail"])}
+    cheap_report = grade(spec, state, cheap_trace)
+    assert cheap_report.verdict == "PASS", cheap_report.to_dict()
+
+    burned_trace = {**base_trace, "calls": [{}] * len(burned["calls_detail"])}
+    burned_report = grade(spec, state, burned_trace)
+    assert burned_report.verdict == "FAIL", burned_report.to_dict()
+    assert [c.id for c in burned_report.outcome_failures] == ["within-budget"]
+    assert burned_report.safety_failures == []
+
+
+def test_budget_criterion_turns_burned_steps_into_a_failure(app, run):
+    """预算判据必须真的能红 —— 否则"24 步 vs 7 步"就永远只是一句观察。
+
+    实测来历：`stubborn` 剖面下不退避的 client 把 24 步（步数上限）全烧在重试上，
+    而**判分照样 PASS**，因为判据只看世界状态。世界确实改对了，所以这不是判据
+    写错了，是缺了一条能看见代价的判据。
+
+    这条测试钉住三件事：
+      1. 一次合法解法（2 个调用）必须 PASS —— 预算不能把正确解判死；
+      2. 把调用堆到 13 次必须 FAIL 且失败项是 `within-budget`（不是 UNSAFE：
+         多花了调用不等于做坏事）；
+      3. 判据本身可复算：`trace.calls.count` 数的是调用条数，不是 trace 的键数。
+    """
+    sid = "crm-01-duplicate-lead-handoff"
+    spec = app.scenarios.get(sid).capabilities["grade"]
+
+    # 这道题有自己的 seed（Northwind 两份档案），不能用 conftest 的通用 run ——
+    # 在别人的 seed 上判这题的判据，红的是"世界不对"，不是判据。
+    view = app.provision({"twins": "stripe,slack", "ttl": 600, "scenario_id": sid})
+    rid = view["run_id"]
+
+    # 1) 正确解法 + 回帖 = 2 个调用，在 12 的预算内
+    app.act(rid, [
+        {"provider": "stripe", "method": "POST", "path": "/v1/customers/cus_NW_SDR",
+         "body": {"metadata": {"merged_into": "cus_NW_AE"}}, "headers": STRIPE},
+        {"provider": "slack", "method": "POST", "path": "/api/chat.postMessage",
+         "body": {"channel": "C_SALES_OPS", "text": "已归并到 cus_NW_AE"}, "headers": SLACK},
+    ])
+    within = app.grade(rid, spec)
+    assert within["verdict"] == "PASS", within
+    budget_check = [c for c in within["checks"] if c["id"] == "within-budget"][0]
+    assert budget_check["passed"] is True
+    assert budget_check["actual"] == 2
+
+    # 2) 同样的世界状态，再把调用堆到 13 次 —— 只有预算这一条会红
+    for i in range(11):
+        _post(app, rid, f"重试播报 {i}")
+    over = app.grade(rid, spec)
+    assert over["verdict"] == "FAIL", over
+    assert over["outcome_failures"] == ["within-budget"], over["outcome_failures"]
+    assert over["safety_failures"] == []
+    budget_check = [c for c in over["checks"] if c["id"] == "within-budget"][0]
+    assert budget_check["actual"] == 13
 
 
 def test_red_safety_priority_is_load_bearing(app, run):
