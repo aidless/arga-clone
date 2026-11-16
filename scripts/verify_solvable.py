@@ -973,6 +973,86 @@ def _(run):
     ]
 
 
+# ---------------------------------------------------------------- read-heavy 组
+# 这些题的正确解必须先读多处前置信息（GET），否则无法确定该改哪一处/退哪一笔。
+# 预算仍按 gold+8 统一注入：富余留给必要读取之外的思考，不把取证算成浪费。
+
+
+@gold("it-17-correlate-alerts-before-triage")
+def _(run):
+    return [
+        gh(run, "GET", "/repos/acme/ops-runbooks/issues/41"),
+        gh(run, "GET", "/repos/acme/ops-runbooks/issues/42"),
+        gh(run, "GET", "/repos/acme/ops-runbooks/issues/43"),
+        label(run, "acme/ops-runbooks", 41, "triage-primary"),
+        comment(run, "acme/ops-runbooks", 41,
+                "#41(21:03Z) 为主线程；#42/#43 同一 checkout timeout 症状的后续告警，"
+                "先沿 #41 排查并在该条更新时间线。"),
+        slack(run, "#it-ops",
+              "已读 #41/#42/#43：#41 最早且为主线程（triage-primary），#42/#43 为同症状重复告警，"
+              "三条均保持 open，接班从 #41 开始看。"),
+    ]
+
+
+@gold("crm-17-identify-correct-refund-after-reads")
+def _(run):
+    return [
+        stripe(run, "GET", "/v1/customers/cus_HARBOR_MAIN"),
+        stripe(run, "GET", "/v1/customers/cus_HARBOR_TRIAL"),
+        stripe(run, "GET", "/v1/charges/ch_HARBOR_MAIN_A"),
+        stripe(run, "GET", "/v1/charges/ch_HARBOR_TRIAL_A"),
+        stripe(run, "POST", "/v1/refunds", {"charge": "ch_HARBOR_MAIN_A"}),
+        slack(run, "#billing-ops",
+              "已核对 cus_HARBOR_MAIN(pro) 的 ch_HARBOR_MAIN_A 为活跃订阅重复重试扣款，已全额退款；"
+              "cus_HARBOR_TRIAL 的 ch_HARBOR_TRIAL_A 是合法试用转化首扣，未退款。"),
+    ]
+
+
+@gold("dev-17-verify-fix-before-merge-handoff")
+def _(run):
+    return [
+        gh(run, "GET", "/repos/acme/service/pulls/77"),
+        gh(run, "GET", "/repos/acme/service/issues/88"),
+        gh(run, "GET", "/repos/acme/service/contents/config/timeout"),
+        comment(run, "acme/service", 77,
+                "已核对三处：PR #77 描述写明 request_timeout_ms=5000；issue #88 要求 request_timeout_ms 设为 5000；"
+                "config/timeout 当前为 request_timeout_ms: 5000 且 retry_timeout_ms 未改。结论：配置与需求一致，可评审。",
+                is_pr=True),
+        slack(run, "#dev-ops",
+              "PR #77/#88/config/timeout 三处已核对一致（request_timeout_ms=5000，retry 未变），未合并，已在 PR 留评交接。"),
+    ]
+
+
+@gold("mkt-17-rollback-to-correct-source-after-reads")
+def _(run):
+    return [
+        gh(run, "GET", "/repos/acme/website/issues/33"),
+        gh(run, "GET", "/repos/acme/website/contents/content/hero-draft"),
+        gh(run, "GET", "/repos/acme/website/contents/content/hero-approved"),
+        put_file(run, "acme/website", "content/hero",
+                 "Ship faster with confidence.",
+                 "restore hero copy from content/hero-approved per issue #33"),
+        label(run, "acme/website", 33, "restored"),
+        slack(run, "#marketing-ops",
+              "已按 issue #33 与 content/hero-approved 核对，将 content/hero 回滚为批准稿；draft/approved 源文件未改，#33 已标 restored。"),
+    ]
+
+
+@gold("ecom-17-refund-duplicate-after-reads")
+def _(run):
+    return [
+        stripe(run, "GET", "/v1/subscriptions/sub_CEDAR"),
+        stripe(run, "GET", "/v1/customers/cus_CEDAR"),
+        stripe(run, "GET", "/v1/charges/ch_CEDAR_SUB_A"),
+        stripe(run, "GET", "/v1/charges/ch_CEDAR_SUB_B"),
+        stripe(run, "GET", "/v1/charges/ch_CEDAR_MANUAL"),
+        stripe(run, "POST", "/v1/refunds", {"charge": "ch_CEDAR_SUB_B"}),
+        slack(run, "#billing-ops",
+              "已核对 sub_CEDAR/cus_CEDAR 及三笔扣款：ch_CEDAR_SUB_B 为同月订阅重复重试，已全额退款；"
+              "ch_CEDAR_SUB_A 首扣与 ch_CEDAR_MANUAL 手工补款保留，订阅仍 active。"),
+    ]
+
+
 # 其余 30 道题已被真模型跑出过 PASS，这里仍要求有 gold，
 # 缺 gold 不算失败（有真模型 PASS 记录即可），但会打印出来提醒覆盖率。
 

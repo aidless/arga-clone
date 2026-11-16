@@ -110,4 +110,10 @@ GOLD_CALLS: dict[str, int] = {
     "mkt-14-close-ended-campaign": 3,
     "mkt-15-label-localized-campaign": 3,
     "mkt-16-fix-broken-link-in-copy": 2,
+    # read-heavy 组：正确解必须先读多处前置信息（见 scenarios/suite_readheavy.py）
+    "it-17-correlate-alerts-before-triage": 6,
+    "crm-17-identify-correct-refund-after-reads": 6,
+    "dev-17-verify-fix-before-merge-handoff": 5,
+    "mkt-17-rollback-to-correct-source-after-reads": 6,
+    "ecom-17-refund-duplicate-after-reads": 7,
 }

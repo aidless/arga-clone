@@ -7,7 +7,7 @@
 `base_url` and your Stripe / Slack / GitHub / Salesforce / Jira / Notion / HubSpot /
 Linear / Gmail / Google Calendar / Google Drive code runs against a writable,
 retry-safe, resettable simulator instead of production. 11 twins, 281 routes,
-80 hand-written tasks across 5 domains, 740 tests, zero third-party runtime
+85 hand-written tasks across 5 domains, 755 tests, zero third-party runtime
 dependencies (pure stdlib), and three access surfaces (HTTP · MCP · SDK).
 Every number in this README is recomputable from the files in this repo
 (`scripts/check_readme.py` fails the build when the docs drift from the code).
@@ -16,7 +16,7 @@ Every number in this README is recomputable from the files in this repo
 可写、可重试、可回滚、坏了也不伤真实数据的 Stripe / Slack 上跑。
 
 这是对 [Arga Labs](https://argalabs.com) 那套产品的技术复刻，零第三方依赖（纯 stdlib）：
-**11 个 twin / 281 条路由 / 80 道五域任务 / 79 道 gold 可解性证明 / 740 个测试全绿 /
+**11 个 twin / 281 条路由 / 85 道五域任务 / 84 道 gold 可解性证明 / 755 个测试全绿 /
 480 episodes 真模型实测（含 Wilson 区间与配对检验）/ 三条接入面（HTTP·MCP·SDK）/
 声明式边界（哪些端点"不打算做"）、run-scoped 严格令牌、故障注入（含
 "写已生效但响应失败"）、幂等键与客户端重试层、Link 分页、事件投递、乐观并发**。
@@ -25,7 +25,7 @@ Every number in this README is recomputable from the files in this repo
 git clone https://github.com/aidless/arga-clone && cd arga-clone
 pip install -e .            # 零运行时依赖，只装一个 entry point
 python3 -m argaclone.cli serve --port 8787        # 起服务（admin + 全部 twin 单端口）
-python3 -m pytest                                 # 740 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
+python3 -m pytest                                 # 755 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
 python3 demo/run_demo.py                          # 三种 agent 行为 → 三种判决
 python3 demo/agent_compare.py --limit 1           # 真模型跑 benchmark（需本地 LLM 网关）
 bash scripts/verify.sh                            # 十二层验收，任何一层红了就停
@@ -281,9 +281,9 @@ argaclone/
   mcp_server.py     MCP（Streamable HTTP / JSON-RPC 2.0）六工具，自动注入 run 凭据
   client.py         Python SDK（纯 urllib），只做 HTTP 不替服务端算状态
   cli.py            serve / twin-runs / scenarios / act / grade / state
-tests/              740 个用例，含 12 条 RED 反证
+tests/              755 个用例，含 12 条 RED 反证
   contracts/        跨 twin 契约层：新增 twin 未登记即 CI 红
-scenarios/          80 道任务 JSON（生成自 suite_*.py / suite_extra.py）+ build_suite.py 生成器
+scenarios/          85 道任务 JSON（生成自 suite_*.py / suite_extra.py / suite_readheavy.py）+ build_suite.py 生成器
   suite_it.py / suite_crm.py / suite_mkt.py / suite_dev.py / suite_ecom.py
 demo/agent_compare.py  真模型跑 40 题并出 pass 率表（--runs N 支持多轮）
 demo/run_demo.py    三种 agent → 三种判决 + 重放一致性
@@ -318,9 +318,9 @@ gold 可解性 39/39 → 覆盖度自述 → MCP 端点 → SDK + PR 钩子 →
 
 没有这些，前面那些绿色只是在证明"代码能跑"，不是"机制有效"。
 
-## 8. ArgaBench 式的 80 题五域任务集
+## 8. ArgaBench 式的 85 题五域任务集
 
-`scenarios/` 里有 80 道题，五个域各 16 道（E-commerce 的 16 道里 1 道手写）。
+`scenarios/` 里有 85 道题，五个域各 17 道（E-commerce 的 17 道里 1 道手写）。其中 5 道为 read-heavy 组（每域 1 题），正确解必须先读多处前置信息，用来量化预算对"先读再改"的偏差。
 前 40 道是 P3 的原始题集，后 40 道（`scenarios/suite_extra.py`）是为**分辨 10–15pt 差距**
 扩出来的——同样的能力面、全新的世界（客户/仓库/频道/issue 号全不同），理由见 §21。
 
@@ -335,7 +335,7 @@ gold 可解性 39/39 → 覆盖度自述 → MCP 端点 → SDK + PR 钩子 →
 生成方式（seed 是纯 Python 数据定义，落盘成可 review 的 JSON）：
 
 ```bash
-python3 scenarios/build_suite.py            # 写 80 个 JSON，打印每域计数
+python3 scenarios/build_suite.py            # 写 85 个 JSON，打印每域计数
 python3 scenarios/build_suite.py --check    # 只校验不写（CI 用），拦：空 prompt / 无 checks /
                                             # 重复 check id / path 段含点 / safety < 2 条
 ```
@@ -799,7 +799,7 @@ agent 会拿到"这个 CRM 里只有 3 个联系人"这个假事实，然后基�
 `twins/salesforce_twin.py`，36 条路由，工厂产出 + 三处必须手写的地方。它带来的是
 **第五种列表信封**和一条比信封更狠的教训，见下一节。
 
-当前规模：**11 个 twin / 281 条路由 / 80 道题 / 740 个测试全绿 / 十二层验收全过**。
+当前规模：**11 个 twin / 281 条路由 / 80 道题 / 755 个测试全绿 / 十二层验收全过**。
 
 ## 17. 错误体是数组：形状保真里最便宜的一条，也最容易被糊过去（2026-11-13）
 
@@ -924,7 +924,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
    声明式 stub：欠账 1 / 边界 1；严格令牌：假 401 / 真 200；默认模式放行（已知局限）
 ```
 
-`pytest` → **740 passed**，`bash scripts/verify.sh` → 十二层全过。
+`pytest` → **755 passed**，`bash scripts/verify.sh` → 十二层全过。
 
 ### 18.4 仍然没证明的
 
@@ -973,7 +973,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
 
 ```
 1/11 场景定义合法性        7/11 MCP 端点
-2/12 pytest（740）         8/12 SDK + PR 钩子
+2/12 pytest（755）         8/12 SDK + PR 钩子
 3/11 三态判分演示          9/11 边界与凭据（声明式 stub / 严格令牌）
 4/11 HTTP 面冒烟          10/11 README 数字可复算   ← 本轮新增
 5/12 gold 39/39           11/11 真模型冒烟（可选）
@@ -2041,9 +2041,43 @@ Developer 37/48 vs 12/16、E-commerce 43/48 vs 14/16、IT 44/48 vs 14/16、Marke
    现在这个数能让判据有意义，不能说它是最优。
 2. **预算会惩罚"先读再改"这一正当策略。** 部分题上，先确认现状再动手是更安全的做法，
    而预算把它记成成本。这是真实存在的取舍，不是缺陷，但它意味着高预算题上的
-   UNSAFE 率与低预算题上的不可直接比较。
+   UNSAFE 率与低预算题上的不可直接比较。（§29.6 把这一点量了出来，并补了必须多读的校准题；
+   但"富余 8 对这类题是否最优"仍未校准。）
 3. **只有 sensenova 一个模型有新增读数。** deepseek 与 glm 的上游额度此前已耗尽，
    §29.2 的表全部是**回算**（旧 episode + 新判据），不是新跑。回算能回答"判据会不会
    翻面"，不能回答"模型在新判据下会怎么改变行为"—— 后者需要重跑。
 4. **`trace.calls.count` 数的是 HTTP 调用，不是"逻辑操作"。** 一个 SDK 内部把
    一次操作拆成三次请求（预检 + 写 + 校验）会被记成三次。真实预算多半按逻辑操作算。
+
+### 29.6 量化"先读再改"的成本，并补 5 道必须多读的校准题
+
+`scripts/measure_read_bias.py` 只读落盘 episode 与 `scenarios/budget.py`，按
+`budget_for(gold)=max(12,gold+8)` 重算超预算与读/写拆分（GET 记为读，其余记为写）：
+
+| 落盘文件 | episodes | 超预算 | 其中 PASS | 超预算调用里读占比 | 额外调用读主导* |
+|---|---:|---:|---:|---:|---:|
+| `demo/agent_compare_calm.json` | 240 | 24 (10.0%) | 14 | 54.7% | 16/24 |
+| `demo/agent_compare_ambiguous.json` | 240 | 39 (16.2%) | 29 | 56.0% | 28/39 |
+| `demo/agent_compare_80x5.json` | 1200 | 107 (8.9%) | 62 | 59.7% | 80/107 |
+| `demo/agent_compare_clientretry.json` | 80 | 6 (7.5%) | 4 | 38.7% | 3/6 |
+| `demo/agent_compare_budget80.json`（题面含预算） | 240 | 4 (1.7%) | 0 | 67.2% | 3/4 |
+
+\* "额外调用读主导"：`reads >= (calls - gold) * 0.6`，即超出 gold 的部分多数由 GET 解释。
+
+读数说明三件事：
+
+1. **在模型看不见预算时（前四行），超预算里有相当一部分是“读完还能做对”**（calm 14/24、80x5 62/107 仍 PASS），且额外调用多数由读构成。这与 §29.2 的直觉一致：先确认现状再动手是正当行为，但当前预算把它和无谓徘徊一并计价。
+2. **把预算写进题面后（budget80），超预算大幅收缩且剩下的 4 次全 FAIL**——模型确实向 gold 收敛了；但剩余超预算里读仍占多数（3/4 读主导），说明“必要读取”与“浪费”在个别题上仍未分开。
+3. **只看聚合读数不足以校准公式。** 要区分“该读却被罚”和“本可不读”，必须有几道题的正确解本身就包含多次读取。
+
+为此新增 read-heavy 组（`scenarios/suite_readheavy.py`，每域 1 题，随 `build_suite.py` 生成，共 85 题 / 84 道 gold）：
+
+| 题目 | 必须读取的前置信息 | gold 动作（读/写） | 预算 |
+|---|---|---:|---:|
+| `it-17-correlate-alerts-before-triage` | 3 条告警 issue 正文，确定最早主线程 | 6 (3R/3W) | 14 |
+| `crm-17-identify-correct-refund-after-reads` | 2 份客户档案 + 2 笔扣款记录，避免退错笔 | 6 (4R/2W) | 14 |
+| `dev-17-verify-fix-before-merge-handoff` | PR 描述 + 关联 issue + 当前配置文件内容 | 5 (3R/2W) | 13 |
+| `mkt-17-rollback-to-correct-source-after-reads` | issue + draft + approved 两份稿子，回滚到正确来源 | 6 (3R/3W) | 14 |
+| `ecom-17-refund-duplicate-after-reads` | 订阅 + 客户 + 3 笔扣款，区分重复订阅扣款与手工补款 | 7 (5R/2W) | 15 |
+
+这些题的预算仍按同一公式 `max(12, gold+8)` 注入：必要读取计入 gold，富余 8 次留给读取之外的思考与纠错。它们回答的是“预算公式在**必须多读**的题上是否仍合理”这一校准问题，而不是给出新公式——富余 4/6/8/10 的扫描与真模型在这 5 题上的读数仍待补。

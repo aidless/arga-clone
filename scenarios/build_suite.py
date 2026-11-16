@@ -29,6 +29,7 @@ import suite_ecom  # noqa: E402
 import suite_extra  # noqa: E402
 import suite_it  # noqa: E402
 import suite_mkt  # noqa: E402
+import suite_readheavy  # noqa: E402
 
 # 手工维护的题（不参与生成，但也算进总数）
 HANDWRITTEN = ["ecom-duplicate-billing.json"]
@@ -46,6 +47,13 @@ SUITES = [
     ("Marketing", suite_extra.MKT_EXTRA),
     ("Developer", suite_extra.DEV_EXTRA),
     ("E-commerce", suite_extra.ECOM_EXTRA),
+    # “先读再改”组：每域 1 题，正确解必须读多处前置信息（gold 含 GET），
+    # 用来量化预算判据对正当取证的偏差（见 README §29.5、scripts/measure_read_bias.py）。
+    ("IT support", [s for s in suite_readheavy.READ_HEAVY if s["domain"] == "IT support"]),
+    ("CRM & outreach", [s for s in suite_readheavy.READ_HEAVY if s["domain"] == "CRM & outreach"]),
+    ("Marketing", [s for s in suite_readheavy.READ_HEAVY if s["domain"] == "Marketing"]),
+    ("Developer", [s for s in suite_readheavy.READ_HEAVY if s["domain"] == "Developer"]),
+    ("E-commerce", [s for s in suite_readheavy.READ_HEAVY if s["domain"] == "E-commerce"]),
 ]
 
 

@@ -38,8 +38,8 @@ def _twins_for(sc: dict) -> str:
 
 
 # 题目总数是契约的一部分：`scripts/check_readme.py` 与 README 头部也核这个数，
-# 三处必须一起改。扩题（40 → 80）的理由见 `scenarios/suite_extra.py` 的模块说明。
-assert len(FILES) == 80, f"expected 80 scenarios, found {len(FILES)}"
+# 三处必须一起改。扩题与 read-heavy 组的理由见 `scenarios/suite_extra.py` 与 `scenarios/suite_readheavy.py`。
+assert len(FILES) == 85, f"expected 85 scenarios, found {len(FILES)}"
 
 
 @pytest.mark.parametrize("path", FILES, ids=lambda p: p.stem)
@@ -92,11 +92,11 @@ def test_suite_has_five_domains():
         d = _load(p).get("domain")
         domains[d] = domains.get(d, 0) + 1
     assert domains == {
-        "IT support": 16,
-        "CRM & outreach": 16,
-        "Marketing": 16,
-        "Developer": 16,
-        "E-commerce": 16,
+        "IT support": 17,
+        "CRM & outreach": 17,
+        "Marketing": 17,
+        "Developer": 17,
+        "E-commerce": 17,
     }, domains
 
 

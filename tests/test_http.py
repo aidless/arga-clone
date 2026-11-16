@@ -107,9 +107,9 @@ def test_admin_scenario_listing(base_url):
     status, body, _ = http("GET", f"{base_url}/admin/scenarios")
     assert status == 200
     ids = [s["id"] for s in body["scenarios"]]
-    # 目录里现在有整套 80 题，断言"包含"而不是"等于某一份"
+    # 目录里现在有整套 85 题，断言"包含"而不是"等于某一份"
     assert "ecom-duplicate-billing" in ids
-    assert len(ids) == 80
+    assert len(ids) == 85
 
 
 def test_bad_json_body_is_400(base_url):

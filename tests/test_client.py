@@ -85,7 +85,7 @@ def test_state_is_reachable(client):
 
 def test_scenarios_listing_and_lookup(client):
     ids = [s["id"] for s in client.scenarios()]
-    assert len(ids) == 80
+    assert len(ids) == 85
     assert client.scenario("ecom-duplicate-billing")["domain"] == "E-commerce"
 
 
