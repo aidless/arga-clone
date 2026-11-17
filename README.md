@@ -7,7 +7,7 @@
 `base_url` and your Stripe / Slack / GitHub / Salesforce / Jira / Notion / HubSpot /
 Linear / Gmail / Google Calendar / Google Drive code runs against a writable,
 retry-safe, resettable simulator instead of production. 11 twins, 281 routes,
-85 hand-written tasks across 5 domains, 755 tests, zero third-party runtime
+85 hand-written tasks across 5 domains, 765 tests, zero third-party runtime
 dependencies (pure stdlib), and three access surfaces (HTTP · MCP · SDK).
 Every number in this README is recomputable from the files in this repo
 (`scripts/check_readme.py` fails the build when the docs drift from the code).
@@ -16,7 +16,7 @@ Every number in this README is recomputable from the files in this repo
 可写、可重试、可回滚、坏了也不伤真实数据的 Stripe / Slack 上跑。
 
 这是对 [Arga Labs](https://argalabs.com) 那套产品的技术复刻，零第三方依赖（纯 stdlib）：
-**11 个 twin / 281 条路由 / 85 道五域任务 / 84 道 gold 可解性证明 / 755 个测试全绿 /
+**11 个 twin / 281 条路由 / 85 道五域任务 / 84 道 gold 可解性证明 / 765 个测试全绿 /
 480 episodes 真模型实测（含 Wilson 区间与配对检验）/ 三条接入面（HTTP·MCP·SDK）/
 声明式边界（哪些端点"不打算做"）、run-scoped 严格令牌、故障注入（含
 "写已生效但响应失败"）、幂等键与客户端重试层、Link 分页、事件投递、乐观并发**。
@@ -25,7 +25,7 @@ Every number in this README is recomputable from the files in this repo
 git clone https://github.com/aidless/arga-clone && cd arga-clone
 pip install -e .            # 零运行时依赖，只装一个 entry point
 python3 -m argaclone.cli serve --port 8787        # 起服务（admin + 全部 twin 单端口）
-python3 -m pytest                                 # 755 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
+python3 -m pytest                                 # 765 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
 python3 demo/run_demo.py                          # 三种 agent 行为 → 三种判决
 python3 demo/agent_compare.py --limit 1           # 真模型跑 benchmark（需本地 LLM 网关）
 bash scripts/verify.sh                            # 十二层验收，任何一层红了就停
@@ -281,7 +281,7 @@ argaclone/
   mcp_server.py     MCP（Streamable HTTP / JSON-RPC 2.0）六工具，自动注入 run 凭据
   client.py         Python SDK（纯 urllib），只做 HTTP 不替服务端算状态
   cli.py            serve / twin-runs / scenarios / act / grade / state
-tests/              755 个用例，含 12 条 RED 反证
+tests/              765 个用例，含 12 条 RED 反证
   contracts/        跨 twin 契约层：新增 twin 未登记即 CI 红
 scenarios/          85 道任务 JSON（生成自 suite_*.py / suite_extra.py / suite_readheavy.py）+ build_suite.py 生成器
   suite_it.py / suite_crm.py / suite_mkt.py / suite_dev.py / suite_ecom.py
@@ -799,7 +799,7 @@ agent 会拿到"这个 CRM 里只有 3 个联系人"这个假事实，然后基�
 `twins/salesforce_twin.py`，36 条路由，工厂产出 + 三处必须手写的地方。它带来的是
 **第五种列表信封**和一条比信封更狠的教训，见下一节。
 
-当前规模：**11 个 twin / 281 条路由 / 80 道题 / 755 个测试全绿 / 十二层验收全过**。
+当前规模：**11 个 twin / 281 条路由 / 80 道题 / 765 个测试全绿 / 十二层验收全过**。
 
 ## 17. 错误体是数组：形状保真里最便宜的一条，也最容易被糊过去（2026-11-13）
 
@@ -924,7 +924,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
    声明式 stub：欠账 1 / 边界 1；严格令牌：假 401 / 真 200；默认模式放行（已知局限）
 ```
 
-`pytest` → **755 passed**，`bash scripts/verify.sh` → 十二层全过。
+`pytest` → **765 passed**，`bash scripts/verify.sh` → 十二层全过。
 
 ### 18.4 仍然没证明的
 
@@ -973,7 +973,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
 
 ```
 1/11 场景定义合法性        7/11 MCP 端点
-2/12 pytest（755）         8/12 SDK + PR 钩子
+2/12 pytest（765）         8/12 SDK + PR 钩子
 3/11 三态判分演示          9/11 边界与凭据（声明式 stub / 严格令牌）
 4/11 HTTP 面冒烟          10/11 README 数字可复算   ← 本轮新增
 5/12 gold 39/39           11/11 真模型冒烟（可选）
@@ -2120,3 +2120,48 @@ calls 6/6/6**。下表 crm-17 一列按修复后读数代入，其余四题按�
 
 仍然没证明的：扫描只覆盖 5 道 read-heavy 题、单模型（sensenova）；spare=8 的 100% 不排除
 这组题本身偏易；crm-17 的修复读数（3 episodes）是修复后单独跑的，不是四臂同批。
+
+### 29.8 富余全量扫描（85 题 × spare ∈ {4, 6, 8, 10} × 2 轮，2026-11-17）
+
+§29.7 的五题扫描没有统计功效，这一轮把四档铺到全部 85 题（170 episodes/档）。
+读数全部由 `scripts/measure_spare_sweep.py` 从落盘 JSON 现算（`demo/fullspare_{4,6,8,10}.json`），
+不手抄：它按**那一档**的 spare 现算预算（`max(BUDGET_FLOOR, gold + spare)`）——
+不调 `budget.budget_for`，因为那个函数读模块级 `BUDGET_SPARE`，扫描结束后恢复成 8，
+用它算 spare=4 档等于四档退化成一档、"超预算"整列归零（`tests/test_spare_sweep.py` 有 RED 反证钉住）。
+FAIL 按 `within-budget` 是否出现（以及是否只有它）分成三格：
+**纯预算红**（任务对、只超了预算）、**任务红**（预算没红，任务真错）、**两者都红**。
+分两格会把"超预算且任务也错"塞进某一格——塞进预算红读起来像"预算罚了做对的解"，
+塞进任务红则预算的代价被抹掉。
+
+| 富余 | episodes | PASS | FAIL | UNSAFE | 通过率 | Wilson 95% | 超预算 | 超预算仍 PASS | 纯预算红 | 任务红 | 两者都红 | 平均调用 |
+|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|
+| 4 | 170 | 152 | 16 | 2 | 89.4% | [83.9, 93.2] | 3 | 0 | 3 | 13 | 0 | 5.45 |
+| 6 | 170 | 153 | 15 | 2 | 90.0% | [84.6, 93.7] | 5 | 0 | 3 | 11 | 1 | 5.23 |
+| **8** | **170** | **153** | **15** | **2** | **90.0%** | **[84.6, 93.7]** | **3** | **0** | **3** | **12** | **0** | **5.14** |
+| 10 | 169 | 149 | 17 | 3 | 88.2% | [82.4, 92.2] | 3 | 0 | 2 | 15 | 0 | 5.17 |
+
+逐题多数票配对（基准 spare=8）：spare=4 丢 8 赢 7、spare=6 丢 8 赢 7、spare=10 丢 5 赢 5，
+三组 `mcnemar_exact` 全部 p=1.0000。85 题全量下**四档通过率仍不分**。
+
+结论三条（全部可从上表复算）：
+
+1. **§29.7 的"spare=8 最优"在 85 题全量下不成立——四档打平（p=1.0000）**。
+   五题小扫描的 100% 是那组题与那组 episodes 的局部读数，不是公式级结论。
+   富余档位在这套题库上不是敏感旋钮：79/85 题的 gold ≤ 4，预算主要由地板 12 决定
+   （spare=4 时 84/85 题撞地板，spare=4 vs 8 只有 7 题预算真的变了；
+   spare=10 vs 8 也只有 33 题变）。**地板比富余更值得动**——这回答了 §29.7 留下的问题。
+2. **"超预算但仍 PASS" 全四档为 0**：判据一旦写进题面（§29.3 的发现），超预算的 episode
+   全部当场红，没有"做对了但读多了"漏网。预算判据的辨识力来自题面约束，
+   不来自档位松紧。
+3. **预算红逐发拆开看是方差不是档位**：预算红集中在同几道题上且每档都在换题——
+   `it-05`（gold 8）两发 15/19 次、`dev-17` 在 spare=6（14>12）与 spare=10（16/18>15）都红、
+   `mkt-05/06/07`（gold 2，预算 12）各只在单一档红过一次。
+   把单档的 3 发预算红读成"这一档太紧"等于把方差读成信号。
+
+机制结论改写：`BUDGET_SPARE = 8` 保留为默认值，但依据从"read-heavy 五题上 8 最优"
+降级为"8 在全量下与 4/6/10 不可区分、且是 §29.7 那组题的局部最优"。
+若要让预算真正成为可调的评测旋钮，下一个动作是**降地板**（floor 12 → 8）而不是继续扫富余。
+
+仍然没证明的：单模型（sensenova）；每档 2 轮（170 episodes）仍不足以把 15/15 vs 8/8 的
+多数票差异与方差分开；spare=10 的 UNSAFE 3 发里有 2 发是 `mkt-12` 的 `not-twice`
+（§26 起就有的既有 UNSAFE），与富余无关；地板档位没有扫描（floor ∈ {8, 10, 12} 是下一轮）。

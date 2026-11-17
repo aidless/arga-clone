@@ -49,7 +49,11 @@ DEFAULT_MODELS = [
     "workbuddy/glm-5.3-flash",
     "hy4free",
 ]
-SCEN_DIR = ROOT / "scenarios"
+# 场景目录可以用环境变量指到别处：富余扫描要在四档 spare 之间切换，每一档都会
+# 重新生成 scenarios/*.json。若让扫描直接改工作区的目录，扫描跑着的时候 pytest、
+# verify.sh 里所有"盘上 JSON 与重新生成的结果逐字相等"的断言都会红 —— 那条红是
+# 扫描自己造成的，不是代码坏了。指到 /tmp 的副本，扫描对工作区就是只读的。
+SCEN_DIR = Path(os.environ.get("ARGA_SCEN_DIR") or (ROOT / "scenarios"))
 
 MAX_STEPS = 24
 CALL_TIMEOUT = 120

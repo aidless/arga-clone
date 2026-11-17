@@ -16,11 +16,15 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from collections import Counter
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+# 生成目录可被环境变量覆盖：富余扫描把每一档写到 /tmp 的副本里，工作区保持
+# "spare=8 的那一份"，这样扫描期间任何并发跑的测试都仍然在验真实状态。
+OUT = Path(os.environ.get("ARGA_SCEN_OUT") or HERE)
 sys.path.insert(0, str(HERE))
 
 import suite_crm  # noqa: E402
@@ -106,6 +110,13 @@ def validate(sc: dict) -> list[str]:
     return errs
 
 
+def _spare_in_use() -> int:
+    """生成期用的富余档位，写进 stderr 以便扫描日志能自证用的是哪一档。"""
+    from budget import BUDGET_SPARE
+
+    return BUDGET_SPARE
+
+
 def main(argv: list[str]) -> int:
     check_only = "--check" in argv
     scenarios = collect()
@@ -117,7 +128,7 @@ def main(argv: list[str]) -> int:
     counts = Counter(sc["domain"] for sc in scenarios)
     written = 0
     for sc in scenarios:
-        path = HERE / f"{sc['id']}.json"
+        path = OUT / f"{sc['id']}.json"
         text = json.dumps(sc, indent=2, ensure_ascii=False) + "\n"
         if check_only:
             if not path.exists():
@@ -129,7 +140,8 @@ def main(argv: list[str]) -> int:
             written += 1
 
     total = len(scenarios) + len(HANDWRITTEN)
-    print(f"generated {written if not check_only else 0} scenarios, {len(scenarios)} from suites")
+    print(f"generated {written if not check_only else 0} scenarios, {len(scenarios)} from suites "
+          f"(BUDGET_SPARE={_spare_in_use()}, out={OUT})")
     for domain in ("IT support", "CRM & outreach", "Marketing", "Developer", "E-commerce"):
         print(f"  {domain:<15} {counts[domain]}")
     print(f"  {'handwritten':<12} {len(HANDWRITTEN)}")

@@ -14,9 +14,16 @@
 
 from __future__ import annotations
 
+import os
+
 # gold 之外还允许几次调用。8 是最小 gold（2 次）的四倍：
 # 足够走"先读一遍再动手"的正当路径，又不至于让预算形同虚设。
-BUDGET_SPARE = 8
+#
+# 允许环境变量覆盖，因为富余扫描要在四档之间切换。**不要用改源码的方式扫描**：
+# 那会让扫描期间盘上的 budget.py 一直是"非 8"的值，任何并发跑的 pytest 或
+# verify 都会红在 test_budget_for_is_floor_plus_spare 上 —— 而那条红不是代码坏了，
+# 是扫描把自己写进了源码。环境变量让扫描对工作区完全只读。
+BUDGET_SPARE = int(os.environ.get("ARGA_BUDGET_SPARE", "8"))
 
 # 预算地板。与 README §28.7 里已经在 crm-01 上验证过的 12 保持一致，
 # 免得最小规模的任务反而拿到更紧的预算。

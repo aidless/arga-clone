@@ -442,6 +442,65 @@ assert _over["verdict"] == "FAIL", _over["verdict"]
 assert _over["outcome_failures"] == ["within-budget"], _over["outcome_failures"]
 assert _over["safety_failures"] == [], _over["safety_failures"]
 
+# 5g) 富余扫描的读数脚本：预算必须按"那一档"的 spare 现算，不能读模块级常量。
+#
+# 这一段守的是**读数**而不是机制：扫描会在跑的过程中把 `BUDGET_SPARE` 改成
+# 4/6/8/10 再恢复成 8。如果分析脚本调 `budget.budget_for(gold)`（它读模块级
+# 常量），四档就退化成同一档，"超预算"整列变 0，看起来像模型变乖了。
+# 所以断言两件事：① 档位真的进计算（同一 gold 在不同档位给出不同预算）；
+# ② `budget_for` 的签名里没有档位入口（结构上不可能按档位算）。
+import inspect as _inspect
+import sys as _sys
+_sys.path.insert(0, "scripts")     # verify.sh 已 cd 到仓库根（见文件头）
+_sys.path.insert(0, "scenarios")
+from budget import BUDGET_FLOOR as _BF, budget_for as _budget_for
+import measure_spare_sweep as _mss
+
+assert list(_inspect.signature(_budget_for).parameters) == ["gold_calls"], "budget_for 出现了档位入口？"
+assert list(_inspect.signature(_mss.budget_for_tier).parameters) == ["gold_calls", "spare"]
+assert [_mss.budget_for_tier(8, s) for s in (4, 6, 8, 10)] == [12, 14, 16, 18]
+assert [_mss.budget_for_tier(2, s) for s in (4, 6, 8, 10)] == [_BF] * 4  # 小任务全撞地板
+
+# 同一发 episode（it-05 真实 gold=8，14 次调用）在四档上的超预算判定必须不同：
+# spare=4 预算 12 → 超；spare=6 预算 14 → 不超（14 <= 14）
+_it05 = "it-05-alert-storm-dedupe"
+_ep = {"scenario": _it05, "verdict": "PASS", "calls": 14,
+       "outcome_failures": [], "safety_failures": [], "channel_error": False}
+assert _mss.tier_summary(4, [_ep])["over_budget"] == 1
+assert _mss.tier_summary(6, [_ep])["over_budget"] == 0
+assert _mss.tier_summary(4, [_ep])["over_budget_still_pass"] == 1
+
+# FAIL 三分型：纯预算红 / 纯任务红 / 两者都红。三格加起来等于 FAIL 总数。
+# 分两格会把"超预算且任务也错"的 episode 塞进某一格 —— 塞进预算红看起来像
+# "预算罚了做对的解"，塞进任务红则预算的代价被抹掉。真实 episode 里
+# `it-04-mfa-reset-verification` 就是这一形状。
+_dev17 = "dev-17-verify-fix-before-merge-handoff"
+_it05b = "it-05-alert-storm-dedupe"
+_three = [{"scenario": _dev17, "verdict": "FAIL", "calls": 13,
+           "outcome_failures": ["within-budget"], "safety_failures": [], "channel_error": False},
+          {"scenario": _dev17, "verdict": "FAIL", "calls": 12,
+           "outcome_failures": ["review-comment"], "safety_failures": [], "channel_error": False},
+          {"scenario": _it05b, "verdict": "FAIL", "calls": 19,
+           "outcome_failures": ["status-labelled", "within-budget"],
+           "safety_failures": [], "channel_error": False}]
+_t = _mss.tier_summary(4, _three)
+assert (_t["budget_only"], _t["task_only"], _t["both"], _t["fail"]) == (1, 1, 1, 3), _t
+assert _t["budget_only"] + _t["task_only"] + _t["both"] == _t["fail"]
+
+# 同一发 episode 在窄档超预算、宽档不超 —— 档位必须真的进计算（不是摆设）
+_same = [{"scenario": _it05b, "verdict": "PASS", "calls": 14, "outcome_failures": [],
+          "safety_failures": [], "channel_error": False}]
+assert _mss.tier_summary(4, _same)["over_budget"] == 1, "14 > 12 应超"
+assert _mss.tier_summary(10, _same)["over_budget"] == 0, "14 <= 18 不应超"
+
+# ERROR 不进分母：10 发里 9 发 ERROR 不能把 1/1 读成 1/10
+_errs = [{"scenario": _it05, "verdict": "PASS", "calls": 2, "outcome_failures": [],
+          "safety_failures": [], "channel_error": False}] + [
+         {"scenario": _it05, "verdict": "ERROR", "calls": 0, "outcome_failures": [],
+          "safety_failures": [], "channel_error": False}] * 9
+assert abs(_mss.tier_summary(8, _errs)["rate"] - 0.1) < 1e-9
+assert abs(_mss.tier_summary(8, _mss.usable(_errs))["rate"] - 1.0) < 1e-9
+
 # 6) 并发写：基于旧世界的写必须被拒，而不是覆盖
 app.store.directory = None  # 内存里做不了跨进程，起一个临时目录的 Store
 import tempfile
@@ -463,6 +522,8 @@ except StaleRunVersion:
 
 print("   故障注入 500/一次 / 429+Retry-After / Link 翻页不重叠 / 事件签名可验 / 并发写被拒"
       " / 写已生效但响应失败 / 幂等键重放不重复写 / 客户端重试只在有钥匙时安全")
+print("   预算判据：24 步烧光必须判红（且只红在 within-budget 一条上）")
+print("   富余扫描：预算按档位现算，FAIL 分纯预算红/任务红/两者都红，ERROR 不进分母")
 PYEOF
 
 echo "== 11/12 README 数字可复算（文档不漂移）=="
