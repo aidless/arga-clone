@@ -64,11 +64,70 @@ def test_red_reading_the_module_level_spare_would_zero_the_over_budget_column():
     import inspect
 
     assert list(inspect.signature(budget_for).parameters) == ["gold_calls"]
-    assert list(inspect.signature(mss.budget_for_tier).parameters) == ["gold_calls", "spare"]
+    # budget_for_tier 的档位入口是可选的（floor 供地板扫描用），但 spare 必须显式
+    params = list(inspect.signature(mss.budget_for_tier).parameters)
+    assert params[:2] == ["gold_calls", "spare"], params
     # 同一个 gold 在两个不同档位上必须给出不同预算（这才是档位进计算的证据）
     assert mss.budget_for_tier(8, 4) != mss.budget_for_tier(8, 10)
+    # 地板入口同样进计算：floor=8 时 gold=2 的题预算 10，floor=12 时 12
+    assert mss.budget_for_tier(2, 8, floor=8) == 10
+    assert mss.budget_for_tier(2, 8, floor=12) == 12
+    assert mss.budget_for_tier(2, 8) == mss.budget_for_tier(2, 8, floor=12)  # 缺省=默认地板
     # 而模块级函数对同一个 gold 只有唯一取值 —— 用它做扫描，四档会退化成同一档
     assert budget_for(8) == budget_for(8)
+
+
+def test_floor_arms_keep_their_own_files_and_shared_baseline():
+    """地板扫描两臂必须各自落盘、且基准用同批的 floorscan_12，不借 fullspare_8。
+
+    首轮 floor=8 用的是 sensenova/sensenova-6.8-flash，中途该路由 404 下线，
+    94/170 episodes ERROR；换 sn-sensenova-6-8-flash 重跑时如果还拿 fullspare_8
+    当基准，就把模型漂移算到了地板头上。结构上钉住源文件：地板分支的文件名
+    必须带 floorscan_，不能出现 fullspare_。
+    """
+    src = Path(mss.__file__).read_text()
+    assert 'path = ROOT / f"demo/floorscan_{floor}.json"' in src
+    # 基准也是地板扫描自己的文件（同模型路由同时间窗），不是富余扫描的文件
+    assert "base_rows = load(8, BUDGET_FLOOR, args.target)" in src
+    import inspect
+
+    fn = inspect.getsource(mss.main)
+    assert "base_rows = load(8)" not in fn, "地板分支仍拿 fullspare_8 当基准"
+
+
+def test_an_all_error_arm_is_unreliable_not_a_100_percent_pass():
+    """整臂 ERROR 不能被读成"剩下几发 100% PASS"。
+
+    实测：deepseek 定向地板对照的第二臂 12/12 ERROR(429)，第一臂 2/12 ERROR。
+    第一臂只剩 3 发可用，若不说"不可信"，那张表会印出 n=3 / 100% PASS。
+    """
+    bad = [{"scenario": CRM01, "verdict": "ERROR", "calls": 0,
+            "outcome_failures": [], "safety_failures": [], "channel_error": True}] * 12
+    t = mss.tier_summary(8, bad, floor=8)
+    assert (t["n"], t["dropped"], t["reliable"]) == (0, 12, False)
+    assert t["rate"] == 0.0  # 不进分母，也不能出现在通过率表里
+
+
+def test_error_fraction_gate_is_not_decorative():
+    """20% ERROR 线：同一次扫描，10% 可配对，30% 拒绝配对。"""
+    good = [_ep(CRM01, 2, "PASS")] * 30
+    assert mss.tier_summary(8, good)["reliable"] is True
+    some = good + [{"scenario": CRM01, "verdict": "ERROR", "calls": 0,
+                    "outcome_failures": [], "safety_failures": [], "channel_error": True}] * 4
+    assert mss.tier_summary(8, some)["reliable"] is True  # 4/34 ≈ 11.8%
+    many = good + [{"scenario": CRM01, "verdict": "ERROR", "calls": 0,
+                    "outcome_failures": [], "safety_failures": [], "channel_error": True}] * 15
+    assert mss.tier_summary(8, many)["reliable"] is False  # 15/45 ≈ 33%
+
+
+def test_load_keeps_errors_so_the_reliability_gate_can_see_them():
+    """承重反证：load 一旦提前丢 ERROR，整臂 ERROR 会被静默读成"缺文件/样本少"。"""
+    src = Path(mss.__file__).read_text()
+    import inspect as _inspect
+
+    fn = _inspect.getsource(mss.load)
+    assert "return rows" in fn
+    assert "return usable(rows)" not in fn, "load 提前过滤了 ERROR，可靠性闸就瞎了"
 
 
 def test_majority_vote_is_per_task_not_per_episode():
@@ -157,7 +216,12 @@ def test_channel_error_and_error_verdicts_are_excluded():
 
 
 def test_red_errors_would_otherwise_dilute_the_rate():
-    """承重反证：ERROR 留在分母里，pass rate 会被上游额度决定（1/10 vs 1/1）。"""
+    """承重反证：ERROR 若留在分母，pass rate 会被上游额度决定（1/10 vs 1/1）。
+
+    现在 tier_summary 自己在入口过滤（load 不过滤、留给可靠性闸看原始占比），
+    所以传原始 rows 也应该是 1.0 —— 若哪天有人把过滤挪走，这一条会红回 0.1。
+    """
     rows = [_ep(CRM01, 2, "PASS")] + [_ep(IT05, 0, "ERROR") for _ in range(9)]
-    assert mss.tier_summary(8, rows)["rate"] == pytest.approx(0.1)
-    assert mss.tier_summary(8, mss.usable(rows))["rate"] == pytest.approx(1.0)
+    assert mss.tier_summary(8, rows)["rate"] == pytest.approx(1.0)
+    assert mss.tier_summary(8, rows)["dropped"] == 9
+    assert sum(1 for r in rows if r["verdict"] == "PASS") / len(rows) == pytest.approx(0.1)

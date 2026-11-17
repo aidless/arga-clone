@@ -7,7 +7,7 @@
 `base_url` and your Stripe / Slack / GitHub / Salesforce / Jira / Notion / HubSpot /
 Linear / Gmail / Google Calendar / Google Drive code runs against a writable,
 retry-safe, resettable simulator instead of production. 11 twins, 281 routes,
-85 hand-written tasks across 5 domains, 765 tests, zero third-party runtime
+85 hand-written tasks across 5 domains, 769 tests, zero third-party runtime
 dependencies (pure stdlib), and three access surfaces (HTTP · MCP · SDK).
 Every number in this README is recomputable from the files in this repo
 (`scripts/check_readme.py` fails the build when the docs drift from the code).
@@ -16,7 +16,7 @@ Every number in this README is recomputable from the files in this repo
 可写、可重试、可回滚、坏了也不伤真实数据的 Stripe / Slack 上跑。
 
 这是对 [Arga Labs](https://argalabs.com) 那套产品的技术复刻，零第三方依赖（纯 stdlib）：
-**11 个 twin / 281 条路由 / 85 道五域任务 / 84 道 gold 可解性证明 / 765 个测试全绿 /
+**11 个 twin / 281 条路由 / 85 道五域任务 / 84 道 gold 可解性证明 / 769 个测试全绿 /
 480 episodes 真模型实测（含 Wilson 区间与配对检验）/ 三条接入面（HTTP·MCP·SDK）/
 声明式边界（哪些端点"不打算做"）、run-scoped 严格令牌、故障注入（含
 "写已生效但响应失败"）、幂等键与客户端重试层、Link 分页、事件投递、乐观并发**。
@@ -25,7 +25,7 @@ Every number in this README is recomputable from the files in this repo
 git clone https://github.com/aidless/arga-clone && cd arga-clone
 pip install -e .            # 零运行时依赖，只装一个 entry point
 python3 -m argaclone.cli serve --port 8787        # 起服务（admin + 全部 twin 单端口）
-python3 -m pytest                                 # 765 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
+python3 -m pytest                                 # 769 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
 python3 demo/run_demo.py                          # 三种 agent 行为 → 三种判决
 python3 demo/agent_compare.py --limit 1           # 真模型跑 benchmark（需本地 LLM 网关）
 bash scripts/verify.sh                            # 十二层验收，任何一层红了就停
@@ -281,7 +281,7 @@ argaclone/
   mcp_server.py     MCP（Streamable HTTP / JSON-RPC 2.0）六工具，自动注入 run 凭据
   client.py         Python SDK（纯 urllib），只做 HTTP 不替服务端算状态
   cli.py            serve / twin-runs / scenarios / act / grade / state
-tests/              765 个用例，含 12 条 RED 反证
+tests/              769 个用例，含 12 条 RED 反证
   contracts/        跨 twin 契约层：新增 twin 未登记即 CI 红
 scenarios/          85 道任务 JSON（生成自 suite_*.py / suite_extra.py / suite_readheavy.py）+ build_suite.py 生成器
   suite_it.py / suite_crm.py / suite_mkt.py / suite_dev.py / suite_ecom.py
@@ -799,7 +799,7 @@ agent 会拿到"这个 CRM 里只有 3 个联系人"这个假事实，然后基�
 `twins/salesforce_twin.py`，36 条路由，工厂产出 + 三处必须手写的地方。它带来的是
 **第五种列表信封**和一条比信封更狠的教训，见下一节。
 
-当前规模：**11 个 twin / 281 条路由 / 80 道题 / 765 个测试全绿 / 十二层验收全过**。
+当前规模：**11 个 twin / 281 条路由 / 80 道题 / 769 个测试全绿 / 十二层验收全过**。
 
 ## 17. 错误体是数组：形状保真里最便宜的一条，也最容易被糊过去（2026-11-13）
 
@@ -924,7 +924,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
    声明式 stub：欠账 1 / 边界 1；严格令牌：假 401 / 真 200；默认模式放行（已知局限）
 ```
 
-`pytest` → **765 passed**，`bash scripts/verify.sh` → 十二层全过。
+`pytest` → **769 passed**，`bash scripts/verify.sh` → 十二层全过。
 
 ### 18.4 仍然没证明的
 
@@ -973,7 +973,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
 
 ```
 1/11 场景定义合法性        7/11 MCP 端点
-2/12 pytest（765）         8/12 SDK + PR 钩子
+2/12 pytest（769）         8/12 SDK + PR 钩子
 3/11 三态判分演示          9/11 边界与凭据（声明式 stub / 严格令牌）
 4/11 HTTP 面冒烟          10/11 README 数字可复算   ← 本轮新增
 5/12 gold 39/39           11/11 真模型冒烟（可选）
@@ -2165,3 +2165,43 @@ FAIL 按 `within-budget` 是否出现（以及是否只有它）分成三格：
 仍然没证明的：单模型（sensenova）；每档 2 轮（170 episodes）仍不足以把 15/15 vs 8/8 的
 多数票差异与方差分开；spare=10 的 UNSAFE 3 发里有 2 发是 `mkt-12` 的 `not-twice`
 （§26 起就有的既有 UNSAFE），与富余无关；地板档位没有扫描（floor ∈ {8, 10, 12} 是下一轮）。
+
+### 29.9 降地板：一次没测成的对照，和它逼出来的可靠性闸（2026-11-17）
+
+§29.8 说"下一个旋钮是降地板"，这一轮就去做。先算作用范围，结论是**只能扫 floor=8**：
+`spare=8` 时 floor ∈ {6,8,10} 逐题等价（`gold+8 ≥ 10` 对每题都成立，地板根本不生效），
+只有 **floor=12（默认）vs floor=8** 有 76/85 题预算不同（`gold=2`: 12→10，`gold=3`: 12→11，
+`gold=4`: 12→12 不变）。`BUDGET_FLOOR` 加了 `ARGA_BUDGET_FLOOR` 环境变量出口，
+与 `BUDGET_SPARE` 同理：不改源码扫描，工作区只读。
+
+**这一轮没有拿到可用的地板读数。** 两次尝试都撞上游，证据如下（不是模型能力问题）：
+
+| 尝试 | 模型路由 | 结果 |
+|---|---|---|
+| 全量 floor=8，170 episodes | `sensenova/sensenova-6.8-flash` | 跑到第 82 发时该路由从网关消失（404），**94/170 ERROR**；落盘文件已改名为 `/tmp/floorscan_8_badroute.json`，不进任何结论 |
+| 同批重跑两臂 | `sn-sensenova-6-8-flash` | 探针 19s/2 episodes 通过，但整臂期间网关 chat 端点 `HTTP=000`（30s 超时），分块跑出现 FAIL/ERROR 交替，两臂都没跑完 |
+| 定向 6 题两臂（deepseek） | `deepseek-v4.1-flash` | 第一臂 2/12 ERROR(429) 只剩 3 发可用，第二臂 **12/12 ERROR(429)** |
+
+按本仓口径 ERROR 不进分母，所以**不对 floor=8 下任何通过率结论**，默认值仍是 12。
+特别记录一次差点发生的假读数：第一臂只剩 3 发可用、恰好全 PASS，若不在表上标"不可信"，
+它会印成 `n=3 / 100% PASS` 并和另一臂做配对——那是在报上游额度，不是报地板。
+
+**不改变行为前提下能算的机械上界**（从 `demo/fullspare_8.json` 的 170 episodes 回算）：
+floor 12→8 只会让预算落在 `(新预算, 12]` 的 episode 翻面，全量共 **5/170 = 2.9%**——
+`mkt-05`（calls 11、12）、`mkt-07`（11）、`it-07`（12）三发 PASS→FAIL，
+`ecom-03`（12）本已 UNSAFE、会多一条 `within-budget`。
+这个数不是实测读数：题面里的预算数字会随地板改（§29.3 已证过"题面写预算会改变被测分布"），
+行为可能变，所以上界**不能代替测量**。
+
+由这次事故加的仪器改动（都已进 `tests/test_spare_sweep.py` 与 `verify.sh` 5g）：
+
+- `load()` 保留原始 ERROR 行，由 `tier_summary()` 在入口过滤；否则一整臂 ERROR 会被静默读成
+  "缺文件 / 样本少"。
+- 每臂报 `rows_total` / `dropped` / `reliable`：**ERROR 占比 > 20% 或可用样本 < 30 即判不可信，
+  拒绝进入配对**（不是把它当 0 分）。表上直接印"可信 / 丢弃"两列。
+- 地板扫描必须两臂同模型路由、同时间窗；拿 `fullspare_8.json`（另一路由、另一时间窗）
+  当基准会把模型漂移算到地板上，读数脚本已钉住"基准用同批 `floorscan_12.json`"。
+
+仍然没证明的：floor=8 对通过率/步数/预算红的实际影响（网关恢复前无法测）；
+机械上界 2.9% 是否因题面预算变小而被行为变化放大或抵消；deepseek 定向 6 题的两臂
+在额度恢复后能否复跑（当次 12/12 429 已作废）。

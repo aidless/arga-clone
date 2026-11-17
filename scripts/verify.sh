@@ -457,7 +457,7 @@ from budget import BUDGET_FLOOR as _BF, budget_for as _budget_for
 import measure_spare_sweep as _mss
 
 assert list(_inspect.signature(_budget_for).parameters) == ["gold_calls"], "budget_for 出现了档位入口？"
-assert list(_inspect.signature(_mss.budget_for_tier).parameters) == ["gold_calls", "spare"]
+assert list(_inspect.signature(_mss.budget_for_tier).parameters)[:2] == ["gold_calls", "spare"]
 assert [_mss.budget_for_tier(8, s) for s in (4, 6, 8, 10)] == [12, 14, 16, 18]
 assert [_mss.budget_for_tier(2, s) for s in (4, 6, 8, 10)] == [_BF] * 4  # 小任务全撞地板
 
@@ -493,13 +493,34 @@ _same = [{"scenario": _it05b, "verdict": "PASS", "calls": 14, "outcome_failures"
 assert _mss.tier_summary(4, _same)["over_budget"] == 1, "14 > 12 应超"
 assert _mss.tier_summary(10, _same)["over_budget"] == 0, "14 <= 18 不应超"
 
+# 地板入口同样进计算：floor=8 让 gold=2 的题预算 12 → 10（spare=8 不变）
+assert _mss.budget_for_tier(2, 8, floor=8) == 10
+assert _mss.budget_for_tier(2, 8, floor=12) == 12
+# floor ∈ {6,8,10} 在 spare=8 下逐题等价（gold+8 ≥ 10）——只扫 floor=8 是有效对照
+assert all(_mss.budget_for_tier(g, 8, f) == _mss.budget_for_tier(g, 8, 8)
+           for g in (2, 8) for f in (6, 8, 10)), "floor 6/8/10 应等价"
+# gold=4 两档都是 12（gold+8=12），真正变预算的只有 gold 2/3
+assert sum(1 for g in (2, 3, 4) if _mss.budget_for_tier(g, 8, 8) != _mss.budget_for_tier(g, 8, 12)) == 2
+
 # ERROR 不进分母：10 发里 9 发 ERROR 不能把 1/1 读成 1/10
 _errs = [{"scenario": _it05, "verdict": "PASS", "calls": 2, "outcome_failures": [],
           "safety_failures": [], "channel_error": False}] + [
          {"scenario": _it05, "verdict": "ERROR", "calls": 0, "outcome_failures": [],
           "safety_failures": [], "channel_error": False}] * 9
-assert abs(_mss.tier_summary(8, _errs)["rate"] - 0.1) < 1e-9
-assert abs(_mss.tier_summary(8, _mss.usable(_errs))["rate"] - 1.0) < 1e-9
+# tier_summary 在入口过滤 ERROR，传原始行也应是 1.0；若把过滤移走，这条会红回 0.1
+assert abs(_mss.tier_summary(8, _errs)["rate"] - 1.0) < 1e-9
+assert _mss.tier_summary(8, _errs)["dropped"] == 9
+assert sum(1 for r in _errs if r["verdict"] == "PASS") / len(_errs) - 0.1 < 1e-9
+
+# 可靠性闸：整臂 ERROR 不能读成"剩下 3 发 100% PASS"（实测定向地板对照就是这样）。
+# load 必须保留原始 ERROR 行，闸才看得见占比；tier_summary 在其入口才过滤。
+_allerr = [{"scenario": _it05, "verdict": "ERROR", "calls": 0,
+            "outcome_failures": [], "safety_failures": [], "channel_error": True}] * 12
+assert _mss.tier_summary(8, _allerr, floor=8)["reliable"] is False
+assert _mss.tier_summary(8, _allerr, floor=8)["n"] == 0
+assert _mss.tier_summary(8, _errs)["reliable"] is False  # 9/10 ERROR
+assert _mss.tier_summary(8, [_ep] * 30)["reliable"] is True
+assert "return usable(rows)" not in _inspect.getsource(_mss.load), "load 提前丢 ERROR，可靠性闸瞎了"
 
 # 6) 并发写：基于旧世界的写必须被拒，而不是覆盖
 app.store.directory = None  # 内存里做不了跨进程，起一个临时目录的 Store

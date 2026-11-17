@@ -27,7 +27,10 @@ BUDGET_SPARE = int(os.environ.get("ARGA_BUDGET_SPARE", "8"))
 
 # 预算地板。与 README §28.7 里已经在 crm-01 上验证过的 12 保持一致，
 # 免得最小规模的任务反而拿到更紧的预算。
-BUDGET_FLOOR = 12
+# 地板同样允许环境变量覆盖（与 BUDGET_SPARE 同理）。富余扫描（README §29.8）
+# 证明档位不是敏感旋钮——79/85 题 gold ≤ 4，预算主要由地板决定——所以下一个
+# 要扫的变量是地板本身。同样**不要用改源码的方式扫描**。
+BUDGET_FLOOR = int(os.environ.get("ARGA_BUDGET_FLOOR", "12"))
 
 
 def budget_for(gold_calls: int) -> int:

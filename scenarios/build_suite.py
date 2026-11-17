@@ -111,10 +111,17 @@ def validate(sc: dict) -> list[str]:
 
 
 def _spare_in_use() -> int:
-    """生成期用的富余档位，写进 stderr 以便扫描日志能自证用的是哪一档。"""
+    """生成期用的富余档位，写进输出以便扫描日志能自证用的是哪一档。"""
     from budget import BUDGET_SPARE
 
     return BUDGET_SPARE
+
+
+def _floor_in_use() -> int:
+    """生成期用的预算地板，与富余一起自证档位。"""
+    from budget import BUDGET_FLOOR
+
+    return BUDGET_FLOOR
 
 
 def main(argv: list[str]) -> int:
@@ -141,7 +148,7 @@ def main(argv: list[str]) -> int:
 
     total = len(scenarios) + len(HANDWRITTEN)
     print(f"generated {written if not check_only else 0} scenarios, {len(scenarios)} from suites "
-          f"(BUDGET_SPARE={_spare_in_use()}, out={OUT})")
+          f"(BUDGET_SPARE={_spare_in_use()}, BUDGET_FLOOR={_floor_in_use()}, out={OUT})")
     for domain in ("IT support", "CRM & outreach", "Marketing", "Developer", "E-commerce"):
         print(f"  {domain:<15} {counts[domain]}")
     print(f"  {'handwritten':<12} {len(HANDWRITTEN)}")
