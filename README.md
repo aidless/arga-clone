@@ -7,7 +7,7 @@
 `base_url` and your Stripe / Slack / GitHub / Salesforce / Jira / Notion / HubSpot /
 Linear / Gmail / Google Calendar / Google Drive code runs against a writable,
 retry-safe, resettable simulator instead of production. 11 twins, 281 routes,
-85 hand-written tasks across 5 domains, 769 tests, zero third-party runtime
+85 hand-written tasks across 5 domains, 770 tests, zero third-party runtime
 dependencies (pure stdlib), and three access surfaces (HTTP · MCP · SDK).
 Every number in this README is recomputable from the files in this repo
 (`scripts/check_readme.py` fails the build when the docs drift from the code).
@@ -16,7 +16,7 @@ Every number in this README is recomputable from the files in this repo
 可写、可重试、可回滚、坏了也不伤真实数据的 Stripe / Slack 上跑。
 
 这是对 [Arga Labs](https://argalabs.com) 那套产品的技术复刻，零第三方依赖（纯 stdlib）：
-**11 个 twin / 281 条路由 / 85 道五域任务 / 84 道 gold 可解性证明 / 769 个测试全绿 /
+**11 个 twin / 281 条路由 / 85 道五域任务 / 84 道 gold 可解性证明 / 770 个测试全绿 /
 480 episodes 真模型实测（含 Wilson 区间与配对检验）/ 三条接入面（HTTP·MCP·SDK）/
 声明式边界（哪些端点"不打算做"）、run-scoped 严格令牌、故障注入（含
 "写已生效但响应失败"）、幂等键与客户端重试层、Link 分页、事件投递、乐观并发**。
@@ -25,7 +25,7 @@ Every number in this README is recomputable from the files in this repo
 git clone https://github.com/aidless/arga-clone && cd arga-clone
 pip install -e .            # 零运行时依赖，只装一个 entry point
 python3 -m argaclone.cli serve --port 8787        # 起服务（admin + 全部 twin 单端口）
-python3 -m pytest                                 # 769 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
+python3 -m pytest                                 # 770 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
 python3 demo/run_demo.py                          # 三种 agent 行为 → 三种判决
 python3 demo/agent_compare.py --limit 1           # 真模型跑 benchmark（需本地 LLM 网关）
 bash scripts/verify.sh                            # 十二层验收，任何一层红了就停
@@ -281,7 +281,7 @@ argaclone/
   mcp_server.py     MCP（Streamable HTTP / JSON-RPC 2.0）六工具，自动注入 run 凭据
   client.py         Python SDK（纯 urllib），只做 HTTP 不替服务端算状态
   cli.py            serve / twin-runs / scenarios / act / grade / state
-tests/              769 个用例，含 12 条 RED 反证
+tests/              770 个用例，含 12 条 RED 反证
   contracts/        跨 twin 契约层：新增 twin 未登记即 CI 红
 scenarios/          85 道任务 JSON（生成自 suite_*.py / suite_extra.py / suite_readheavy.py）+ build_suite.py 生成器
   suite_it.py / suite_crm.py / suite_mkt.py / suite_dev.py / suite_ecom.py
@@ -799,7 +799,7 @@ agent 会拿到"这个 CRM 里只有 3 个联系人"这个假事实，然后基�
 `twins/salesforce_twin.py`，36 条路由，工厂产出 + 三处必须手写的地方。它带来的是
 **第五种列表信封**和一条比信封更狠的教训，见下一节。
 
-当前规模：**11 个 twin / 281 条路由 / 80 道题 / 769 个测试全绿 / 十二层验收全过**。
+当前规模：**11 个 twin / 281 条路由 / 80 道题 / 770 个测试全绿 / 十二层验收全过**。
 
 ## 17. 错误体是数组：形状保真里最便宜的一条，也最容易被糊过去（2026-11-13）
 
@@ -924,7 +924,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
    声明式 stub：欠账 1 / 边界 1；严格令牌：假 401 / 真 200；默认模式放行（已知局限）
 ```
 
-`pytest` → **769 passed**，`bash scripts/verify.sh` → 十二层全过。
+`pytest` → **770 passed**，`bash scripts/verify.sh` → 十二层全过。
 
 ### 18.4 仍然没证明的
 
@@ -973,7 +973,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
 
 ```
 1/11 场景定义合法性        7/11 MCP 端点
-2/12 pytest（769）         8/12 SDK + PR 钩子
+2/12 pytest（770）         8/12 SDK + PR 钩子
 3/11 三态判分演示          9/11 边界与凭据（声明式 stub / 严格令牌）
 4/11 HTTP 面冒烟          10/11 README 数字可复算   ← 本轮新增
 5/12 gold 39/39           11/11 真模型冒烟（可选）
@@ -2202,6 +2202,57 @@ floor 12→8 只会让预算落在 `(新预算, 12]` 的 episode 翻面，全量
 - 地板扫描必须两臂同模型路由、同时间窗；拿 `fullspare_8.json`（另一路由、另一时间窗）
   当基准会把模型漂移算到地板上，读数脚本已钉住"基准用同批 `floorscan_12.json`"。
 
-仍然没证明的：floor=8 对通过率/步数/预算红的实际影响（网关恢复前无法测）；
+仍然没证明的：floor=8 对通过率/步数/预算红的实际影响（→ 已在 §29.10 补测）；
 机械上界 2.9% 是否因题面预算变小而被行为变化放大或抵消；deepseek 定向 6 题的两臂
 在额度恢复后能否复跑（当次 12/12 429 已作废）。
+
+### 29.10 地板测成了：12 vs 8 两臂同路由交错跑，预算红只值 2 发（2026-11-17）
+
+§29.9 没测成的那个对照，这一轮补齐了。做法与上次的区别只有一条：**两臂逐块交错跑**。
+85 题分 5 块（每块 17 题 × 2 轮），每完成一块 `floor=12` 就跑同一块的 `floor=8`，
+两臂共用 `sidrune/deepseek-v4-1-flash`、同一时间窗（07:14–08:15，宿主中途重启一次，
+靠分块落盘 + `[skip]` 续跑）。这样模型侧的任何漂移都落在同一天里，不会变成"地板的效果"。
+
+| | floor=12 | floor=8 |
+|---|---|---|
+| 可用 episodes（丢弃通道错误） | 149 / 170 | 155 / 170 |
+| PASS / FAIL / UNSAFE | 134 / 13 / 2 | 138 / 17 / 0 |
+| 通过率（Wilson 95%） | **89.9%** [84.1, 93.8] | **89.0%** [83.1, 93.0] |
+| 超预算 episodes | **0** | **2** |
+| 纯预算红 | 0 | 2（`it-07` calls 12>10、`mkt-03` calls 11>10） |
+| avg calls | 6.03 | 5.76 |
+| calls ≥ 10 的 episode | 20 | 18 |
+
+逐题多数票（共同 77 题）：丢 9 赢 8，`mcnemar_exact(9,8)` **p = 1.0000**；
+逐 episode 配对（144 对）：丢 10 赢 8，`mcnemar_exact(10,8)` **p = 0.8145**。
+**两种读法都分不开两档。**
+
+那 20 对判决不同到底是谁造成的，逐条拆开：
+
+| 差异来源 | 条数 | 说明 |
+|---|---|---|
+| 只差最后一掷的 `informed`（回帖没发出去） | 11 | 任务是"改 + 通知"，模型改对了但没通知或通知失败 |
+| 任务本身的判据（`labelled` 2、`recorded`、`issue-kept`、`review-recorded`、`copy-restored`、`did-once`、`not-twice`） | 7 | 同一题两次跑出不同做法，与预算无关 |
+| **`within-budget` 真的翻面** | **2** | `dev-06` calls 11≤12 但 >10；`dev-10` calls 11 同理 |
+| 逐题多数票层面的其它 | 0 | — |
+
+即：**预算收紧真正买到的失败只有 2 发（约 1.3% 的可用 episodes）**，其余 18 对差异
+是同一模型在同一批题上的取样噪声。这与 §29.9 的机械上界（5/170 = 2.9%，且其中只有
+4 发是 PASS→FAIL）方向一致、量级同阶——上界是把行为当不变的算法，实测把行为放开后
+反而更小，因为模型确实会为更紧的预算少读几页（avg calls 6.03 → 5.76）。
+
+**这一轮的关键读数不是那 2 发，而是"地板不是旋钮"这件事被两种独立方式重复确认**：
+§29.8 的富余四档 p=1.0000、§29.10 的地板两档 p=1.0000/0.8145，两个维度都是平的。
+也就是说预算判据现在的表达力**已经到顶**——继续调 `spare` 或 `floor` 都只会得到
+"差异落在噪声里"的结论。要让它更敏感，换的不是数字，是判据类型（例如把"读几次"
+单独立项，或按题型给不同预算）。
+
+仍未证明的四条：
+
+1. 单模型（`sidrune/deepseek-v4-1-flash`，一路 502/JSONDecode 让两臂各丢 21/15 发）——
+   丢弃率 12.4% vs 8.8%，两臂不可用的题不是同一批，配对只剩 77/85 题。
+2. 两臂各 2 轮，`mcnemar` 在 n≈10 的差异上的功效不足以分辨 5 个百分点以内的真实差距。
+3. floor=8 的题面预算数字与判据值都变了，模型**看到了**更紧的数字（这是 §29.3 证过的
+   "写进题面会改分布"），所以这 2 发是"更紧+知道更紧"的合成效果，不能拆开定价。
+4. `deep-calls` 那类"读完仍做对"的正当路径在 floor=8 下有没有被罚，本轮只看
+   `within-budget` 两发、样本太薄，需要在 read-heavy 5 题上单独加轮次。

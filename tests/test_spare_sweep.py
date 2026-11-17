@@ -130,6 +130,19 @@ def test_load_keeps_errors_so_the_reliability_gate_can_see_them():
     assert "return usable(rows)" not in fn, "load 提前过滤了 ERROR，可靠性闸就瞎了"
 
 
+def test_floor_pair_driver_interleaves_arms_within_each_chunk():
+    """交错跑是这次能量出地板的前提：整臂分开跑会把上游漂移算成地板（§29.9 的教训）。
+
+    承重反证：把内层循环提到外层（先跑完 12 再跑 8），这条断言会红。
+    """
+    src = (Path(mss.__file__).resolve().parents[1] / "scripts/floor_pair_scan.sh").read_text()
+    outer = src.index("for c in ")
+    inner = src.index("for floor in 12 8", outer)
+    assert inner > outer, "两档必须嵌在块循环内部"
+    assert src.count("for floor in 12 8") == 2, "一处建两臂题库、一处在块内交错；多出来就是整臂分开跑"
+    assert "${k}" in src[inner:src.index("done", inner)], "块内的两档循环必须按块号出文件名"
+
+
 def test_majority_vote_is_per_task_not_per_episode():
     rows = [
         _ep(CRM01, 2, "PASS"),
