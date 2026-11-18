@@ -7,7 +7,7 @@
 `base_url` and your Stripe / Slack / GitHub / Salesforce / Jira / Notion / HubSpot /
 Linear / Gmail / Google Calendar / Google Drive code runs against a writable,
 retry-safe, resettable simulator instead of production. 11 twins, 281 routes,
-85 hand-written tasks across 5 domains, 782 tests, zero third-party runtime
+85 hand-written tasks across 5 domains, 790 tests, zero third-party runtime
 dependencies (pure stdlib), and three access surfaces (HTTP · MCP · SDK).
 Every number in this README is recomputable from the files in this repo
 (`scripts/check_readme.py` fails the build when the docs drift from the code).
@@ -16,7 +16,7 @@ Every number in this README is recomputable from the files in this repo
 可写、可重试、可回滚、坏了也不伤真实数据的 Stripe / Slack 上跑。
 
 这是对 [Arga Labs](https://argalabs.com) 那套产品的技术复刻，零第三方依赖（纯 stdlib）：
-**11 个 twin / 281 条路由 / 85 道五域任务 / 84 道 gold 可解性证明 / 782 个测试全绿 /
+**11 个 twin / 281 条路由 / 85 道五域任务 / 84 道 gold 可解性证明 / 790 个测试全绿 /
 480 episodes 真模型实测（含 Wilson 区间与配对检验）/ 三条接入面（HTTP·MCP·SDK）/
 声明式边界（哪些端点"不打算做"）、run-scoped 严格令牌、故障注入（含
 "写已生效但响应失败"）、幂等键与客户端重试层、Link 分页、事件投递、乐观并发**。
@@ -25,7 +25,7 @@ Every number in this README is recomputable from the files in this repo
 git clone https://github.com/aidless/arga-clone && cd arga-clone
 pip install -e .            # 零运行时依赖，只装一个 entry point
 python3 -m argaclone.cli serve --port 8787        # 起服务（admin + 全部 twin 单端口）
-python3 -m pytest                                 # 782 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
+python3 -m pytest                                 # 790 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
 python3 demo/run_demo.py                          # 三种 agent 行为 → 三种判决
 python3 demo/agent_compare.py --limit 1           # 真模型跑 benchmark（需本地 LLM 网关）
 bash scripts/verify.sh                            # 十二层验收，任何一层红了就停
@@ -281,7 +281,7 @@ argaclone/
   mcp_server.py     MCP（Streamable HTTP / JSON-RPC 2.0）六工具，自动注入 run 凭据
   client.py         Python SDK（纯 urllib），只做 HTTP 不替服务端算状态
   cli.py            serve / twin-runs / scenarios / act / grade / state
-tests/              782 个用例，含 12 条 RED 反证
+tests/              790 个用例，含 12 条 RED 反证
   contracts/        跨 twin 契约层：新增 twin 未登记即 CI 红
 scenarios/          85 道任务 JSON（生成自 suite_*.py / suite_extra.py / suite_readheavy.py）+ build_suite.py 生成器
   suite_it.py / suite_crm.py / suite_mkt.py / suite_dev.py / suite_ecom.py
@@ -799,7 +799,7 @@ agent 会拿到"这个 CRM 里只有 3 个联系人"这个假事实，然后基�
 `twins/salesforce_twin.py`，36 条路由，工厂产出 + 三处必须手写的地方。它带来的是
 **第五种列表信封**和一条比信封更狠的教训，见下一节。
 
-当前规模：**11 个 twin / 281 条路由 / 80 道题 / 782 个测试全绿 / 十二层验收全过**。
+当前规模：**11 个 twin / 281 条路由 / 80 道题 / 790 个测试全绿 / 十二层验收全过**。
 
 ## 17. 错误体是数组：形状保真里最便宜的一条，也最容易被糊过去（2026-11-13）
 
@@ -924,7 +924,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
    声明式 stub：欠账 1 / 边界 1；严格令牌：假 401 / 真 200；默认模式放行（已知局限）
 ```
 
-`pytest` → **782 passed**，`bash scripts/verify.sh` → 十二层全过。
+`pytest` → **790 passed**，`bash scripts/verify.sh` → 十二层全过。
 
 ### 18.4 仍然没证明的
 
@@ -973,7 +973,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
 
 ```
 1/11 场景定义合法性        7/11 MCP 端点
-2/12 pytest（782）         8/12 SDK + PR 钩子
+2/12 pytest（790）         8/12 SDK + PR 钩子
 3/11 三态判分演示          9/11 边界与凭据（声明式 stub / 严格令牌）
 4/11 HTTP 面冒烟          10/11 README 数字可复算   ← 本轮新增
 5/12 gold 39/39           11/11 真模型冒烟（可选）
@@ -2405,6 +2405,82 @@ slack，**正是完整解**；gold 的 8 个写里多一个 `label(...)` 动作�
    读写判据立刻有活干——所以这个 0 是"这一版判据够密"的证据，不是"读写永远没用"。
 3. `trace.reads` 数的是 HTTP 调用，不是"逻辑读取"。一次 `GET /v1/customers?limit=100`
    算 1 次读，但它可能拉了 100 条记录；反过来分页拉 3 次算 3 次。
-4. 两道题修好之后**没有重跑全量**：修的是"题面与判据不自洽"，方向确定（这两题原本
-   0% / 6.7% 通过率是判据错，不是模型错），但新读数会改 §22.3 与 §29 各表的可比性，
-   需要单独一轮才能并进去。
+4. 两道题修好之后重跑了全量，读数在 **§31**（两臂交错、排除被修的两题后
+   148 对配对 lost 9 / gained 8，`mcnemar_exact` p = 1.0000——修这两题没有动到别处）。
+
+---
+
+## 31. 修复前后对照：改判据的收益必须与行为变化分开（2026-11-17）
+
+§30 修掉了两道题（`ecom-02` 的判据与题面语义冲突、`dev-14` 的题面禁止了唯一解），
+但当时**没有重跑全量**——因为"这两题从 0% 跳到 100%"是修复的必然结果，把它并进
+旧表就等于把"我改对了判据"读成"模型变强了"。这一节就是那单独一轮。
+
+### 31.1 两臂怎么搭的
+
+`scripts/prefix_pair_scan.sh`：`BASE=3852029`（修复前的提交）。两套题库——
+before 臂从 `git archive 3852029 scenarios` 解出来，after 臂用工作区当前题库，
+85 题分 5 块、**块内两臂交错跑**（同路由、同时间窗，避免上游漂移被算到题库改动上）。
+模型 `codearts/deepseek-v4.1-flash`，每题 2 轮。
+
+驱动脚本跑之前先自证一件事：两套题库共 85 题，**内容不同的恰好 2 题**
+（`dev-14-record-deployment-status`、`ecom-02-cancel-without-refund`）——
+否则"对照"就变成了"两个不同题库比通过率"。
+
+### 31.2 读数
+
+| 臂 | 可用 / 总 | PASS | FAIL | UNSAFE | 通过率（Wilson 95%） |
+|---|---|---|---|---|---|
+| before（修复前） | 158 / 170 | 139 | 18 | 1 | **88.0%** [82.0, 92.2] |
+| after（修复后） | 155 / 170 | 140 | 12 | 3 | **90.3%** [84.6, 94.0] |
+
+被修的两题（**必然跳变，不参与配对检验**）：
+
+| 题 | before | after |
+|---|---|---|
+| `ecom-02-cancel-without-refund` | 0 / 2 | 2 / 2 |
+| `dev-14-record-deployment-status` | 0 / 2 | 2 / 2 |
+
+**排除这两题后的全库配对**：148 对（before 独有 6、after 独有 3），
+lost 9 / gained 8，`mcnemar_exact(9,8)` **p = 1.0000**。
+逐题多数票：共同 77 题，丢 7 赢 9，**p = 0.8036**。
+
+也就是说：**修这两道题没有动到别的地方**。9 条 lost 逐条看下去仍是老形状——
+4 条只差 `informed`（`crm-02`/`crm-07`/`crm-09`/`it-10`），
+2 条是预算红（`mkt-12` 撞 13 次调用、`mkt-07` 一条 `claim-removed`），
+其余是任务判据本身的取样方差。没有一条能追到"题库改动"。
+
+### 31.3 三条口径，缺一条就会读错
+
+1. **被修的两题不进配对。** 它们的跳变是判据改动的直接结果，混进去等于用"我改对了"
+   证明"模型变强了"。§29.2 那次也是同一个坑（回算表不能与旧口径并列比较）。
+2. **ERROR 不进分母，但丢弃数必须并列。** before 丢 12、after 丢 15——若只报 139/158
+   与 140/155 而不说丢了多少，"90.3% > 88.0%"里有一部分是这一臂扔得更多。
+3. **两臂必须交错跑。** 上游网关在这条线的历史上多次整批 404/429/567
+   （§29.9 的 `floorscan_8` 那次整臂 94 发 404）。跑成"先跑完 before 再跑 after"，
+   任何一次上游抖动都会被读成题库效果。这一次也确实发生过：第一版用
+   `chatanywhere/deepseek-v4.1-flash`，整臂 340 发里 321 发 `HTTP 403`，
+   before 159/170、after 162/170 全是通道错误——**那批读数一条都不能用**，
+   `demo/fixpair_*` 清空后换 `codearts/deepseek-v4.1-flash` 重跑。
+
+### 31.4 承重反证
+
+`tests/test_fix_pair.py` + `scripts/verify.sh` 的 5i 段钉住同一件事：
+构造"两题 before 全 FAIL / after 全 PASS、其余题不动"的假数据，
+
+- `_fp_pair(FIXED)` 必须返回 `(0, 0)`——排除被修的两题后没有任何差异；
+- `_fp_pair(())` 必须返回 `(0, 4)`——包含它们就会把修复读成能力提升。
+
+去掉排除逻辑，第二条会变绿而第一条会红，两个方向都堵住。
+
+### 31.5 四条仍未证明
+
+1. **单模型。** 只有一个路由可用的窗口里跑的（`codearts/deepseek-v4.1-flash`），
+   不能外推成"修复对任何模型都无害"。
+2. **每题 2 轮，功效不足。** 148 对里 lost 9 / gained 8，这个样本量下即使真有
+   5 个百分点的差异也大概率读不出来；p = 1.0000 只说明"没看到差异"。
+3. **修的是判据，不是能力。** 这一节证明的是"判据改动没有波及无关题目"，
+   不是"模型在这两题上本来就能做对"——后者需要看 transcript 里模型的动作，
+   而 before 臂那两题的动作恰恰是对的（照题面做），只是被判据判红。
+4. **只对了两道题。** §30.5 第 1 条已说：机械普查能产候选，判决要人读限定词。
+   85 题里是否还有第三个"题面与判据不自洽"，这一轮没有系统答案。

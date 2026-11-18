@@ -1,0 +1,66 @@
+{
+  "arms": {
+    "before": {
+      "arm": "before",
+      "rows_total": 170,
+      "n": 158,
+      "dropped": 12,
+      "pass": 139,
+      "fail": 18,
+      "unsafe": 1,
+      "rate": 0.879746835443038,
+      "ci": [
+        0.8198182956470671,
+        0.9216480806103867
+      ]
+    },
+    "after": {
+      "arm": "after",
+      "rows_total": 170,
+      "n": 155,
+      "dropped": 15,
+      "pass": 140,
+      "fail": 12,
+      "unsafe": 3,
+      "rate": 0.9032258064516129,
+      "ci": [
+        0.8464739490540437,
+        0.9404742502892048
+      ]
+    }
+  },
+  "fixed": {
+    "ecom-02-cancel-without-refund": {
+      "before": {
+        "n": 2,
+        "pass": 0
+      },
+      "after": {
+        "n": 2,
+        "pass": 2
+      }
+    },
+    "dev-14-record-deployment-status": {
+      "before": {
+        "n": 2,
+        "pass": 0
+      },
+      "after": {
+        "n": 2,
+        "pass": 2
+      }
+    }
+  },
+  "pair": {
+    "pairs": 148,
+    "lost": 9,
+    "gained": 8,
+    "p": 1.0
+  },
+  "majority": {
+    "common": 77,
+    "lost": 7,
+    "gained": 9,
+    "p": 0.803619384765625
+  }
+}
