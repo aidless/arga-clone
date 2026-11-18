@@ -70,6 +70,7 @@ def empty_trace() -> dict[str, Any]:
         "client_retries": 0,
         "path_sequence": [],
         "bodies": [],
+        "reads": [],
         "writes": [],
     }
 
@@ -327,6 +328,12 @@ class Runner:
 
     def trace(self) -> dict[str, Any]:
         writes = [c for c in self.calls if _is_write(c["provider"], c["method"], c["path"])]
+        # 读与写必须分开数。合起来的 `trace.calls.count` 分不清两种形状完全不同的
+        # 浪费：一种是"读了八遍现状才动手"，一种是"该写三处只写了两处"。
+        # 前者多数是正当取证（题面常要求先读），后者一律是没做完 —— 用同一个数字
+        # 管它们，等于让判据在两种缺陷之间二选一，只能选一个。
+        # 判定读/写用 `_is_write` 而不是 `method != "GET"`：Slack 的读接口也是 POST。
+        reads = [c for c in self.calls if not _is_write(c["provider"], c["method"], c["path"])]
         return {
             "calls": self.calls,
             "count": len(self.calls),
@@ -344,6 +351,19 @@ class Runner:
                 json.dumps(self._normalize_write(c["provider"], c["request"]), ensure_ascii=False)
                 for c in writes
                 if c["request"]
+            ],
+            # `trace.reads.count` / `trace.writes.count` 就落在这两个列表上。
+            # 它们是**真实列表**而不是现算的整数：`count` 是终结符，
+            # 作用在 list 上就是长度，语义与 `trace.calls.count` 完全一致，
+            # 不需要为它单开一个会静默取错值的特例分支。
+            "reads": [
+                {
+                    "provider": c["provider"],
+                    "method": c["method"],
+                    "path": c["path"],
+                    "status": c.get("status"),
+                }
+                for c in reads
             ],
             "writes": [
                 {

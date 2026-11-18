@@ -366,7 +366,7 @@ def _(run):
 @gold("ecom-02-cancel-without-refund")
 def _(run):
     return [
-        stripe(run, "DELETE", "/v1/subscriptions/sub_SKYWIND", {"cancel_at_period_end": True}),
+        stripe(run, "POST", "/v1/subscriptions/sub_SKYWIND", {"cancel_at_period_end": True}),
         slack(run, "#billing-ops",
               "Skywind Labs 的订阅已按周期末取消（cancel_at_period_end），"
               "本周期已用满、不退款，下个周期不再扣款。客户成功可跟进流失原因。"),
@@ -804,9 +804,9 @@ def _(run):
 @gold("dev-14-record-deployment-status")
 def _(run):
     return [
-        gh(run, "POST", "/repos/acme/service/deployments",
-           {"ref": "main", "environment": "production", "description": "2.8.0 发布"}),
-        slack(run, "#dev-ops", "已在 acme/service 记录一次 production 部署（ref main）；没有建 release、没有提交代码。"),
+        gh(run, "POST", "/repos/acme/service/deployments/1001/statuses",
+           {"state": "success", "description": "v2.5.1 生产部署完成"}),
+        slack(run, "#dev-ops", "已给 deployment 1001（production / main）补 success 状态；没有触发新部署、没有建 release、没有提交代码。"),
     ]
 
 

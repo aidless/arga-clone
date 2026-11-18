@@ -89,6 +89,7 @@ def github_ws(
     issues: list[dict[str, Any]] | None = None,
     pulls: list[dict[str, Any]] | None = None,
     scopes: list[str] | None = None,
+    deployments: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     out: dict[str, Any] = {
         "repos": repos,
@@ -99,7 +100,30 @@ def github_ws(
     }
     if scopes is not None:
         out["granted_scopes"] = scopes
+    if deployments is not None:
+        out["deployments"] = deployments
     return out
+
+
+def deployment(
+    repo_full: str,
+    dep_id: int,
+    ref: str = "main",
+    environment: str = "production",
+    description: str = "",
+) -> dict[str, Any]:
+    """预置一个已存在的部署。
+
+    没有它，"给已有部署补状态"这类题只能靠模型自己去建一个部署 —— 而题面
+    往往明写"不要触发新的部署"，于是**唯一能过的路径恰好是被禁止的那个动作**。
+    """
+    return {
+        "repo": repo_full,
+        "id": dep_id,
+        "ref": ref,
+        "environment": environment,
+        "description": description,
+    }
 
 
 def repo(full: str, private: bool = False, stars: int = 3) -> dict[str, Any]:

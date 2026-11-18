@@ -403,6 +403,26 @@ def apply_scenario(
         if spec.get("granted_scopes") is not None:
             gh["granted_scopes"] = list(spec["granted_scopes"])
 
+        # 预置部署：不装载的话 deployments 永远是空 list，于是"给已有部署补状态"
+        # 这类题唯一能过的路径变成"先自己建一个部署"——而那往往正是题面禁止的动作。
+        for d in spec.get("deployments", []):
+            full = d.get("repo")
+            if not full:
+                continue
+            dep_id = int(d.get("id") or 0) or (1000 + len(gh["deployments"].get(full) or []) + 1)
+            ref = d.get("ref") or "main"
+            gh["deployments"].setdefault(full, []).append({
+                "id": dep_id,
+                "ref": ref,
+                "sha": (gh.get("branches", {}).get(full) or {}).get(ref, "0" * 40),
+                "environment": d.get("environment") or "production",
+                "description": d.get("description") or "",
+                "task": d.get("task") or "deploy",
+                "payload": d.get("payload") or {},
+                "created_at": int(time.time()) - int(d.get("age_seconds") or 0),
+                "creator": {"login": "arga-bot"},
+            })
+
     # ---- 能力收窄 ----
     caps = scenario.capabilities or {}
     if "slack" in run.twins and "slack" in caps:
