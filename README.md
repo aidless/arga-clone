@@ -7,7 +7,7 @@
 `base_url` and your Stripe / Slack / GitHub / Salesforce / Jira / Notion / HubSpot /
 Linear / Gmail / Google Calendar / Google Drive code runs against a writable,
 retry-safe, resettable simulator instead of production. 11 twins, 281 routes,
-85 hand-written tasks across 5 domains, 790 tests, zero third-party runtime
+85 hand-written tasks across 5 domains, 798 tests, zero third-party runtime
 dependencies (pure stdlib), and three access surfaces (HTTP · MCP · SDK).
 Every number in this README is recomputable from the files in this repo
 (`scripts/check_readme.py` fails the build when the docs drift from the code).
@@ -16,7 +16,7 @@ Every number in this README is recomputable from the files in this repo
 可写、可重试、可回滚、坏了也不伤真实数据的 Stripe / Slack 上跑。
 
 这是对 [Arga Labs](https://argalabs.com) 那套产品的技术复刻，零第三方依赖（纯 stdlib）：
-**11 个 twin / 281 条路由 / 85 道五域任务 / 84 道 gold 可解性证明 / 790 个测试全绿 /
+**11 个 twin / 281 条路由 / 85 道五域任务 / 84 道 gold 可解性证明 / 798 个测试全绿 /
 480 episodes 真模型实测（含 Wilson 区间与配对检验）/ 三条接入面（HTTP·MCP·SDK）/
 声明式边界（哪些端点"不打算做"）、run-scoped 严格令牌、故障注入（含
 "写已生效但响应失败"）、幂等键与客户端重试层、Link 分页、事件投递、乐观并发**。
@@ -25,7 +25,7 @@ Every number in this README is recomputable from the files in this repo
 git clone https://github.com/aidless/arga-clone && cd arga-clone
 pip install -e .            # 零运行时依赖，只装一个 entry point
 python3 -m argaclone.cli serve --port 8787        # 起服务（admin + 全部 twin 单端口）
-python3 -m pytest                                 # 790 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
+python3 -m pytest                                 # 798 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
 python3 demo/run_demo.py                          # 三种 agent 行为 → 三种判决
 python3 demo/agent_compare.py --limit 1           # 真模型跑 benchmark（需本地 LLM 网关）
 bash scripts/verify.sh                            # 十二层验收，任何一层红了就停
@@ -281,7 +281,7 @@ argaclone/
   mcp_server.py     MCP（Streamable HTTP / JSON-RPC 2.0）六工具，自动注入 run 凭据
   client.py         Python SDK（纯 urllib），只做 HTTP 不替服务端算状态
   cli.py            serve / twin-runs / scenarios / act / grade / state
-tests/              790 个用例，含 12 条 RED 反证
+tests/              798 个用例，含 12 条 RED 反证
   contracts/        跨 twin 契约层：新增 twin 未登记即 CI 红
 scenarios/          85 道任务 JSON（生成自 suite_*.py / suite_extra.py / suite_readheavy.py）+ build_suite.py 生成器
   suite_it.py / suite_crm.py / suite_mkt.py / suite_dev.py / suite_ecom.py
@@ -799,7 +799,7 @@ agent 会拿到"这个 CRM 里只有 3 个联系人"这个假事实，然后基�
 `twins/salesforce_twin.py`，36 条路由，工厂产出 + 三处必须手写的地方。它带来的是
 **第五种列表信封**和一条比信封更狠的教训，见下一节。
 
-当前规模：**11 个 twin / 281 条路由 / 80 道题 / 790 个测试全绿 / 十二层验收全过**。
+当前规模：**11 个 twin / 281 条路由 / 80 道题 / 798 个测试全绿 / 十二层验收全过**。
 
 ## 17. 错误体是数组：形状保真里最便宜的一条，也最容易被糊过去（2026-11-13）
 
@@ -924,7 +924,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
    声明式 stub：欠账 1 / 边界 1；严格令牌：假 401 / 真 200；默认模式放行（已知局限）
 ```
 
-`pytest` → **790 passed**，`bash scripts/verify.sh` → 十二层全过。
+`pytest` → **798 passed**，`bash scripts/verify.sh` → 十二层全过。
 
 ### 18.4 仍然没证明的
 
@@ -973,7 +973,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
 
 ```
 1/11 场景定义合法性        7/11 MCP 端点
-2/12 pytest（790）         8/12 SDK + PR 钩子
+2/12 pytest（798）         8/12 SDK + PR 钩子
 3/11 三态判分演示          9/11 边界与凭据（声明式 stub / 严格令牌）
 4/11 HTTP 面冒烟          10/11 README 数字可复算   ← 本轮新增
 5/12 gold 39/39           11/11 真模型冒烟（可选）
@@ -2482,5 +2482,72 @@ lost 9 / gained 8，`mcnemar_exact(9,8)` **p = 1.0000**。
 3. **修的是判据，不是能力。** 这一节证明的是"判据改动没有波及无关题目"，
    不是"模型在这两题上本来就能做对"——后者需要看 transcript 里模型的动作，
    而 before 臂那两题的动作恰恰是对的（照题面做），只是被判据判红。
-4. **只对了两道题。** §30.5 第 1 条已说：机械普查能产候选，判决要人读限定词。
-   85 题里是否还有第三个"题面与判据不自洽"，这一轮没有系统答案。
+4. **只对了两道题 —— 已由 §32 给出系统答案。** §30.5 第 1 条说机械普查能产候选、
+   判决要人读限定词。§32 把 §30 修掉的这两个缺陷做成确定性审计器，扫过当前 85 题：
+   **这两类已知形状再无命中**（但那不等于"题库完全自洽"，边界见 §32.5）。
+
+## 32. 题面自洽审计器：给"是否还有第三个不自洽题"一个系统答案（2026-11-18）
+
+§31.5 第 4 条把一个问题悬着：85 题里会不会还有第三道像 `ecom-02` / `dev-14` 那样
+"题面与判据自相矛盾"的题。这一节回答它，口径先说清楚：**回答的是"这两个已经被修掉的
+缺陷形状还有没有"，不是"任意形式的自洽性"**——后者需要逐题人读，没有免费的机械判据。
+
+### 32.1 为什么是确定性规则，不是又一个 LLM 裁判
+
+这条线的上游网关在整个过程中反复 404 / 429 / 567（§29.9、§31.2 都有记录）。
+把"题库是否自洽"这种**可以机械判定的事**交给一个不稳的模型，等于给结论再叠一层
+采样方差。两个已修缺陷的根因都是结构性的（一句话 + 一组判据 + gold 动作的组合），
+能用规则精确定位，就没有理由不用规则。审计器读三样东西：`scenarios/*.json` 的
+`prompt` 与 `capabilities.grade.checks`、`scripts/verify_solvable.py` 的 `GOLD`
+（现算 84 题 gold 动作，用 `_is_write` 标读/写），零网络依赖。
+
+### 32.2 两类已知缺陷形状
+
+| 形状 | 原型 | 判据（三条同时成立才算命中） |
+|---|---|---|
+| 禁令无防线 | `dev-14`（修复前） | 题面**无界定**禁止某动作类别 + gold 恰好做了该动作 + safety 无一条防线 |
+| 语义对立 | `ecom-02`（修复前） | 题面要求"周期末取消" + 判据却要 `subscriptions.*.status eq "canceled"`（立刻终止，与题面相反） |
+
+两类都踩过一个误判陷阱，已固化进守卫：
+
+- **限定词否定是合法的。** "不要退两笔"而 gold 退一笔、"不要整笔退款"而 gold 部分退款
+  ——禁止的是某个具体对象，不是整个动作类别。限定词表刻意**不含"新"**：
+  在一个 seed 里根本没有部署的题里，"不要触发新的部署"恰恰是无界类别级禁止
+  （`dev-14` 的形状），把"新"当限定词会漏掉它。
+- **否定句不能读成肯定句。** `ecom-02` 修复后题面有"不要立刻终止"、判据要 `status eq active`
+  ——这是**自洽**的。第一版审计器写了个"反向分支"（题面要终止、判据要 active），
+  把"不要立刻终止"里的"立刻终止"当成了肯定要求，误伤了修好的题。已删掉反向分支，
+  宁可漏报对称形状也不误伤自洽题。正向也不需要题面额外说"不要立刻终止"：
+  "周期末取消"本身就蕴含 status 应保持 active。
+
+### 32.3 读数
+
+| 题库 | 命中 | 明细 |
+|---|---|---|
+| 当前 85 题 | **0** | 两类已知形状均未命中 |
+| 修复前题库（`git archive 3852029`）+ 还原的 `dev-14` gold | 2 | `dev-14` 禁令无防线 + `ecom-02` 语义对立 |
+| 修复前题库 + 当前 gold | 1 | `ecom-02` 语义对立（`dev-14` 依赖其修复前 gold 才暴露） |
+
+入口：`python3 scripts/audit_scenario_consistency.py`（命中时退出码 1，便于当闸）。
+
+### 32.4 承重反证
+
+`tests/test_audit_scenario_consistency.py`（8 条）+ `scripts/verify.sh` 的 5j 段钉住三个方向：
+
+- 当前题库必须 0 命中（绿）；
+- 修复前 `dev-14` 的禁令无防线、修复前 `ecom-02` 的语义对立各必须命中（红）；
+- 加了 safety 防线、或带限定词的否定，必须放行（防止把自洽题误判成缺陷）。
+
+去掉任何一类的检测，对应的 RED 断言就红；放宽限定词到"新"，`dev-14` 那条就红。
+
+### 32.5 仍未证明
+
+1. **只覆盖两类已知形状。** "禁令无防线"只查了新建部署与退款两类动作，
+   "语义对立"只查了订阅取消这一组语义。第三类不自洽（别的动作、别的语义对立）
+   这套规则看不见——0 命中不等于"题库完全自洽"。
+2. **限定词表是人工枚举。** 漏掉一个真实限定词会误报，多写一个（如"新"）会漏报；
+   表本身的完备性没有独立证据。
+3. **禁令句识别靠正则。** 拆句按 `。；\n`，禁令词表是
+   不要/不得/禁止/别/切勿/严禁；换个说法（"无须""禁止不了"）可能漏掉。
+4. **gold 动作是判据的代理。** dev-14 那类检测依赖"gold 恰好做了被禁的动作"，
+   若某题 gold 走了别的路径，即使题面与判据冲突也可能漏报。
