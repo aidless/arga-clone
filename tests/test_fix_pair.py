@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 import sys
 from pathlib import Path
 
@@ -112,3 +113,63 @@ def test_majority_is_strict_not_half():
 def test_per_scenario_counts_only_usable_rows():
     rows = [ep("a", 0, "PASS"), ep("a", 1, "ERROR"), ep("a", 2, "FAIL", channel_error=True)]
     assert m.per_scenario(rows)["a"] == {"n": 1, "pass": 1}
+
+
+# ---- 前缀参数化（跨模型复现不与首套读数互相覆盖） -----------------------
+
+def test_arm_paths_follow_the_prefix():
+    assert m.arm_paths("xm") == {"before": "demo/xm_before.json",
+                                 "after": "demo/xm_after.json"}
+    assert m.arm_paths("fixpair") == {"before": "demo/fixpair_before.json",
+                                      "after": "demo/fixpair_after.json"}
+
+
+def test_red_prefix_is_not_hardcoded_to_fixpair():
+    """前缀若写死成 fixpair，跨模型读数会覆盖首套证据——这条必须红在那种实现上。"""
+    src = inspect.getsource(m.arm_paths)
+    assert "fixpair" not in src, "arm_paths 里出现写死的 fixpair 字面量"
+    assert f"demo/{{prefix}}_before.json" in src, "路径必须由 prefix 拼出"
+
+
+def test_main_accepts_prefix_flag():
+    src = inspect.getsource(m.main)
+    assert "--prefix" in src and "args.prefix" in src, "main 必须吃 --prefix 并用它取数"
+
+
+# ---- 可靠性闸（§29.9 同款：通道塌方时不能印配对 p 值） --------------------
+
+def test_rate_block_flags_an_unreliable_arm():
+    """判据与 §29.9 的 measure_spare_sweep.py 同口径，两臂必须一致。"""
+    clean = [ep("a", i, "PASS") for i in range(30)]
+    assert m.rate_block("clean", clean)["reliable"] is True
+
+    dead = [ep("a", i, "PASS") for i in range(20)] + [ep("b", i, "ERROR") for i in range(320)]
+    assert m.rate_block("dead", dead)["reliable"] is False, "320/340 ERROR 必须判不可信"
+
+    thin = [ep("a", i, "PASS") for i in range(5)]
+    assert m.rate_block("thin", thin)["reliable"] is False, "样本不足 30 必须判不可信"
+
+
+def test_red_a_dead_route_would_still_print_a_paired_p_value(tmp_path, monkeypatch, capsys):
+    """承重反证：没有这道闸时，321/340 ERROR 的批次仍会印出配对 p 值。
+
+    本轮真踩到（sidrune 中途 402、qft2xf5j 空 content）。缺闸的实现必须被这条
+    判红，否则"两臂都印了 p 值"会被人当成跨模型复现的结论读。
+    """
+    before = [ep("a", i, "PASS") for i in range(20)]
+    after = [ep("a", i, "PASS") for i in range(19)] + [ep("b", i, "ERROR") for i in range(321)]
+    (tmp_path / "demo").mkdir()
+    (tmp_path / "demo" / "xm_before.json").write_text(json.dumps(before))
+    (tmp_path / "demo" / "xm_after.json").write_text(json.dumps(after))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["measure_fix_pair.py", "--prefix", "xm"])
+    m.main()
+    out = capsys.readouterr().out
+    assert "拒绝配对" in out
+    assert "mcnemar_exact" not in out, "不可信时绝不能印配对 p 值"
+
+    payload = json.loads((tmp_path / "demo" / "xm_summary.json").read_text())
+    assert payload["reliable"] is False
+    assert payload["pair"] is None
+    assert payload["majority"] is None
+

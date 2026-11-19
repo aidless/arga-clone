@@ -11,7 +11,9 @@
 #
 # 用法：bash scripts/prefix_pair_scan.sh
 #   MODEL=chatanywhere/deepseek-v4.1-flash RUNS=2 CHUNKS=5 BASE=3852029
-# 产物：demo/fixpair_{before,after}_chunk_0N.json → 合并成 demo/fixpair_{before,after}.json
+#   PREFIX=fixpair        # 产物前缀，默认 fixpair；换模型复现时改它，
+#                         # 旧读数（codearts 那套）就不会被覆盖
+# 产物：demo/${PREFIX}_{before,after}_chunk_0N.json → 合并成 demo/${PREFIX}_{before,after}.json
 # 宿主重启后按「文件已存在」跳过，直接再跑一次即可续上。
 set -u
 cd "$(dirname "$0")/.." || exit 1
@@ -20,6 +22,7 @@ RUNS="${RUNS:-2}"
 CHUNKS="${CHUNKS:-5}"
 BASE="${BASE:-3852029}"
 WORK="${WORK:-/tmp/arga_fix_pair}"
+PREFIX="${PREFIX:-fixpair}"
 
 mkdir -p "$WORK/chunks"
 python3 - "$CHUNKS" "$WORK/chunks" <<'PY'
@@ -54,23 +57,24 @@ for c in "$WORK"/chunks/fix_chunk_*; do
   k=$(basename "$c")
   ids=$(cat "$c")
   for arm in before after; do
-    out="demo/fixpair_${arm}_${k}.json"
+    out="demo/${PREFIX}_${arm}_${k}.json"
     if [ -s "$out" ]; then echo "[skip] $out $(date -Is)"; continue; fi
     echo "[run] $out $(date -Is)"
     ARGA_SCEN_DIR="$WORK/scen_$arm" \
       python3 -u demo/agent_compare.py --models "$MODEL" --runs "$RUNS" --workers 4 \
-        --only "$ids" --out "$out" >> "$WORK/arm_${arm}.log" 2>&1
+        --only "$ids" --out "$out" >> "$WORK/${PREFIX}_arm_${arm}.log" 2>&1
     echo "[done] $out rc=$? $(date -Is)"
   done
 done
 
-python3 - <<'PY'
-import glob, json, pathlib
+PREFIX="$PREFIX" python3 - <<'PY'
+import glob, json, os, pathlib
+prefix = os.environ["PREFIX"]
 for arm in ("before", "after"):
     rows = []
-    for f in sorted(glob.glob(f"demo/fixpair_{arm}_fix_chunk_*.json")):
+    for f in sorted(glob.glob(f"demo/{prefix}_{arm}_fix_chunk_*.json")):
         rows += json.load(open(f))
-    pathlib.Path(f"demo/fixpair_{arm}.json").write_text(json.dumps(rows))
+    pathlib.Path(f"demo/{prefix}_{arm}.json").write_text(json.dumps(rows))
     print(f"merged {arm}: {len(rows)} episodes")
 PY
 echo "[ALL DONE] $(date -Is)"

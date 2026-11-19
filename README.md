@@ -7,7 +7,7 @@
 `base_url` and your Stripe / Slack / GitHub / Salesforce / Jira / Notion / HubSpot /
 Linear / Gmail / Google Calendar / Google Drive code runs against a writable,
 retry-safe, resettable simulator instead of production. 11 twins, 281 routes,
-85 hand-written tasks across 5 domains, 798 tests, zero third-party runtime
+85 hand-written tasks across 5 domains, 803 tests, zero third-party runtime
 dependencies (pure stdlib), and three access surfaces (HTTP · MCP · SDK).
 Every number in this README is recomputable from the files in this repo
 (`scripts/check_readme.py` fails the build when the docs drift from the code).
@@ -16,7 +16,7 @@ Every number in this README is recomputable from the files in this repo
 可写、可重试、可回滚、坏了也不伤真实数据的 Stripe / Slack 上跑。
 
 这是对 [Arga Labs](https://argalabs.com) 那套产品的技术复刻，零第三方依赖（纯 stdlib）：
-**11 个 twin / 281 条路由 / 85 道五域任务 / 84 道 gold 可解性证明 / 798 个测试全绿 /
+**11 个 twin / 281 条路由 / 85 道五域任务 / 84 道 gold 可解性证明 / 803 个测试全绿 /
 480 episodes 真模型实测（含 Wilson 区间与配对检验）/ 三条接入面（HTTP·MCP·SDK）/
 声明式边界（哪些端点"不打算做"）、run-scoped 严格令牌、故障注入（含
 "写已生效但响应失败"）、幂等键与客户端重试层、Link 分页、事件投递、乐观并发**。
@@ -25,7 +25,7 @@ Every number in this README is recomputable from the files in this repo
 git clone https://github.com/aidless/arga-clone && cd arga-clone
 pip install -e .            # 零运行时依赖，只装一个 entry point
 python3 -m argaclone.cli serve --port 8787        # 起服务（admin + 全部 twin 单端口）
-python3 -m pytest                                 # 798 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
+python3 -m pytest                                 # 803 passed（别加 -q：ini 里已有一个，再叠就不打印汇总）
 python3 demo/run_demo.py                          # 三种 agent 行为 → 三种判决
 python3 demo/agent_compare.py --limit 1           # 真模型跑 benchmark（需本地 LLM 网关）
 bash scripts/verify.sh                            # 十二层验收，任何一层红了就停
@@ -281,7 +281,7 @@ argaclone/
   mcp_server.py     MCP（Streamable HTTP / JSON-RPC 2.0）六工具，自动注入 run 凭据
   client.py         Python SDK（纯 urllib），只做 HTTP 不替服务端算状态
   cli.py            serve / twin-runs / scenarios / act / grade / state
-tests/              798 个用例，含 12 条 RED 反证
+tests/              803 个用例，含 12 条 RED 反证
   contracts/        跨 twin 契约层：新增 twin 未登记即 CI 红
 scenarios/          85 道任务 JSON（生成自 suite_*.py / suite_extra.py / suite_readheavy.py）+ build_suite.py 生成器
   suite_it.py / suite_crm.py / suite_mkt.py / suite_dev.py / suite_ecom.py
@@ -799,7 +799,7 @@ agent 会拿到"这个 CRM 里只有 3 个联系人"这个假事实，然后基�
 `twins/salesforce_twin.py`，36 条路由，工厂产出 + 三处必须手写的地方。它带来的是
 **第五种列表信封**和一条比信封更狠的教训，见下一节。
 
-当前规模：**11 个 twin / 281 条路由 / 80 道题 / 798 个测试全绿 / 十二层验收全过**。
+当前规模：**11 个 twin / 281 条路由 / 80 道题 / 803 个测试全绿 / 十二层验收全过**。
 
 ## 17. 错误体是数组：形状保真里最便宜的一条，也最容易被糊过去（2026-11-13）
 
@@ -924,7 +924,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
    声明式 stub：欠账 1 / 边界 1；严格令牌：假 401 / 真 200；默认模式放行（已知局限）
 ```
 
-`pytest` → **798 passed**，`bash scripts/verify.sh` → 十二层全过。
+`pytest` → **803 passed**，`bash scripts/verify.sh` → 十二层全过。
 
 ### 18.4 仍然没证明的
 
@@ -973,7 +973,7 @@ RED 反证：把同一个 run 的 `strict_tokens` 关掉，同一个假 token �
 
 ```
 1/11 场景定义合法性        7/11 MCP 端点
-2/12 pytest（798）         8/12 SDK + PR 钩子
+2/12 pytest（803）         8/12 SDK + PR 钩子
 3/11 三态判分演示          9/11 边界与凭据（声明式 stub / 严格令牌）
 4/11 HTTP 面冒烟          10/11 README 数字可复算   ← 本轮新增
 5/12 gold 39/39           11/11 真模型冒烟（可选）
@@ -2476,7 +2476,13 @@ lost 9 / gained 8，`mcnemar_exact(9,8)` **p = 1.0000**。
 ### 31.5 四条仍未证明
 
 1. **单模型。** 只有一个路由可用的窗口里跑的（`codearts/deepseek-v4.1-flash`），
-   不能外推成"修复对任何模型都无害"。
+   不能外推成"修复对任何模型都无害"。跨模型复现试过两条路由：`sidrune/deepseek-v4-1-flash`
+   在 chunk_00 中途返回 `402 Payment Required`（额度耗尽），`codearts/deepseek-v4.1-flash` 二次使用时
+   连续 6 发空 content —— 两批都按"ERROR 不进分母"作废，**没有取得第二个可读模型**。
+   这次失败暴露了读数器缺可靠性闸的漏洞：321/340 ERROR 时 `measure_fix_pair.py` 仍会印
+   配对 p 值。现已补上 §29.9 同款闸（`reliable = ERROR≤20% 且可用样本≥30`，两臂都可信
+   才配对），塌方臂拒绝配对并在 `summary.json` 里把 `pair`/`majority` 置 null；守卫测试
+   `test_red_a_dead_route_would_still_print_a_paired_p_value` 钉住这个失效模式。
 2. **每题 2 轮，功效不足。** 148 对里 lost 9 / gained 8，这个样本量下即使真有
    5 个百分点的差异也大概率读不出来；p = 1.0000 只说明"没看到差异"。
 3. **修的是判据，不是能力。** 这一节证明的是"判据改动没有波及无关题目"，

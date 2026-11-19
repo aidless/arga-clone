@@ -5,6 +5,7 @@
       "rows_total": 170,
       "n": 158,
       "dropped": 12,
+      "reliable": true,
       "pass": 139,
       "fail": 18,
       "unsafe": 1,
@@ -19,6 +20,7 @@
       "rows_total": 170,
       "n": 155,
       "dropped": 15,
+      "reliable": true,
       "pass": 140,
       "fail": 12,
       "unsafe": 3,
@@ -51,6 +53,7 @@
       }
     }
   },
+  "reliable": true,
   "pair": {
     "pairs": 148,
     "lost": 9,
