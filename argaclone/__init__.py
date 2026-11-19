@@ -10,4 +10,4 @@
   server.py     admin API + 全部 twin 单端口
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

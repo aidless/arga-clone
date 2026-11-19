@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arga-clone"
-version = "0.1.0"
+version = "0.2.0"
 description = "有状态 SaaS 孪生沙箱：给 AI agent 用的可写、可重试、可回滚的 Stripe/Slack/GitHub…"
 readme = "README.md"
 requires-python = ">=3.10"
